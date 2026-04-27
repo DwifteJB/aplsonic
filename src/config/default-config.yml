@@ -1,0 +1,13 @@
+
+database:
+  host: localhost
+  port: 4000
+  user: root
+  password: 
+  database: test
+
+port: 4553
+album_art_path: ./data/art
+music_path: ./data/music
+sync_on_search: false
+download: "getAlbum" # "getAlbum" or "play"
