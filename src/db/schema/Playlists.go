@@ -17,6 +17,11 @@ type Playlist struct {
 	Owner    string `json:"owner,omitempty" xml:"owner,omitempty" gorm:"type:varchar(191);index"`
 	Public   bool   `json:"public" xml:"public" gorm:"default:false"`
 	CoverArt string `json:"coverArt,omitempty" xml:"coverArt,omitempty"`
+
+	AppleID     string     `json:"-" xml:"-" gorm:"type:varchar(191);index"`
+	Source      string     `json:"-" xml:"-" gorm:"type:varchar(16)"`
+	Fingerprint string     `json:"-" xml:"-" gorm:"type:varchar(64)"`
+	SyncedAt    *time.Time `json:"-" xml:"-"`
 }
 
 // playlist entry is an ordered song within a playlist

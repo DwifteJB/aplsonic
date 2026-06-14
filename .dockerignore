@@ -1,0 +1,13 @@
+.git
+.github
+**/node_modules
+aplsonic
+data/
+docs/
+cookies.txt
+configuration.yml
+*.md
+AGENTS.MD
+.claude/
+.vscode/
+.idea/

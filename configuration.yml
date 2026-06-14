@@ -7,8 +7,6 @@ database:
 
 port: 4533 # should be 4533, but i have a server already running lol
 web_port: 4534 # admin can be 0
-album_art_path: ./data/art
-music_path: ./data/music
 sync_on_search: false
 download: "getAlbum" # "getAlbum" (on album open), "play" (on stream), or "playAlbum" (on stream, then rest of album in bg)
 

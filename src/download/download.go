@@ -40,10 +40,6 @@ func EnsureSong(user *schema.User, song *schema.Song) error {
 }
 
 func downloadSong(user *schema.User, song *schema.Song) error {
-	if song.AlbumID == "" {
-		return fmt.Errorf("song %s has no album id", song.ID)
-	}
-
 	tmp, err := os.MkdirTemp("", "aplsonic-dl-")
 	if err != nil {
 		return err
@@ -65,7 +61,10 @@ func downloadSong(user *schema.User, song *schema.Song) error {
 		codec = "aac-web"
 	}
 
-	url := fmt.Sprintf("https://music.apple.com/us/album/_/%s?i=%s", song.AlbumID, song.ID)
+	url := fmt.Sprintf("https://music.apple.com/us/song/%s", song.ID)
+	if song.AlbumID != "" {
+		url = fmt.Sprintf("https://music.apple.com/us/album/_/%s?i=%s", song.AlbumID, song.ID)
+	}
 	outDir := filepath.Join(tmp, "out")
 	cmd, err := g.Command(context.Background(),
 		"--output-path", outDir,
@@ -151,6 +150,38 @@ func EnsureAlbum(user *schema.User, albumID string) {
 			defer func() { <-sem }()
 			if err := EnsureSong(user, &s); err != nil {
 				fmt.Printf("download: album %s song %s failed: %v\n", albumID, s.ID, err)
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func EnsurePlaylist(user *schema.User, playlistID string) {
+	if !storage.Ready() {
+		return
+	}
+
+	var entries []schema.PlaylistEntry
+	db.DB.Where("playlist_id = ?", playlistID).Order("position ASC").Find(&entries)
+
+	const workers = 3
+	sem := make(chan struct{}, workers)
+	var wg sync.WaitGroup
+	for _, e := range entries {
+		var song schema.Song
+		if db.DB.First(&song, "id = ?", e.SongID).Error != nil {
+			continue
+		}
+		if storage.Has(song.ID) {
+			continue
+		}
+		wg.Add(1)
+		sem <- struct{}{}
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+			if err := EnsureSong(user, &song); err != nil {
+				fmt.Printf("download: playlist %s song %s failed: %v\n", playlistID, song.ID, err)
 			}
 		}()
 	}

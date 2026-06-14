@@ -10,7 +10,6 @@ import (
 	"github.com/DwifteJB/aplsonic/src/db"
 	"github.com/DwifteJB/aplsonic/src/db/schema"
 	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 )
 
@@ -56,7 +55,7 @@ func attemptRenew(u *schema.User) (ok bool) {
 // silentRenew drives a headless browser through MusicKit authorize() using the
 // supplied cookie jar, and returns a freshly re-captured Netscape jar.
 func silentRenew(netscape string) (string, error) {
-	l := launcher.New().Headless(true)
+	l := applemusic.NewLauncher().Headless(true)
 	controlURL, err := l.Launch()
 	if err != nil {
 		return "", fmt.Errorf("launch browser: %w", err)

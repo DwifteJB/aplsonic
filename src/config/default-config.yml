@@ -8,8 +8,6 @@ database:
 
 port: 4553
 web_port: 4554 # admin panel; set to 0 (or same as port) to serve it on the main port
-album_art_path: ./data/art
-music_path: ./data/music
 sync_on_search: false
 download: "getAlbum" # "getAlbum" (on album open), "play" (on stream), or "playAlbum" (on stream, then rest of album in bg)
 

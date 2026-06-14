@@ -40,6 +40,26 @@ type Attributes struct {
 	ISRC         string `json:"isrc,omitempty"`
 	ComposerName string `json:"composerName,omitempty"`
 	CurrentBPM   int    `json:"currentBpm,omitempty"`
+
+	// playlist-specific
+	Description *Description `json:"description,omitempty"`
+	CanEdit     bool         `json:"canEdit,omitempty"`
+	IsPublic    bool         `json:"isPublic,omitempty"`
+	DateAdded   string       `json:"dateAdded,omitempty"`
+	PlayParams  *PlayParams  `json:"playParams,omitempty"`
+}
+
+type Description struct {
+	Standard string `json:"standard,omitempty"`
+	Short    string `json:"short,omitempty"`
+}
+
+type PlayParams struct {
+	ID          string `json:"id,omitempty"`
+	Kind        string `json:"kind,omitempty"`
+	IsLibrary   bool   `json:"isLibrary,omitempty"`
+	CatalogID   string `json:"catalogId,omitempty"`
+	PurchasedID string `json:"purchasedId,omitempty"`
 }
 
 type Artwork struct {
@@ -49,7 +69,8 @@ type Artwork struct {
 }
 
 type Relationships struct {
-	Albums  *ResourceList `json:"albums,omitempty"`
-	Artists *ResourceList `json:"artists,omitempty"`
-	Tracks  *ResourceList `json:"tracks,omitempty"`
+	Albums    *ResourceList `json:"albums,omitempty"`
+	Artists   *ResourceList `json:"artists,omitempty"`
+	Tracks    *ResourceList `json:"tracks,omitempty"`
+	Playlists *ResourceList `json:"playlists,omitempty"`
 }

@@ -38,6 +38,8 @@ type response struct {
 	Song          *ChildBody         `json:"song,omitempty" xml:"song,omitempty"`
 	Starred       *StarredBody       `json:"starred,omitempty" xml:"starred,omitempty"`
 	Starred2      *Starred2Body      `json:"starred2,omitempty" xml:"starred2,omitempty"`
+	Playlists     *PlaylistsBody     `json:"playlists,omitempty" xml:"playlists,omitempty"`
+	Playlist      *PlaylistWithSongsBody `json:"playlist,omitempty" xml:"playlist,omitempty"`
 }
 
 
@@ -175,6 +177,28 @@ type SearchResult3Body struct {
 	Artist []AlbumID3Body `json:"artist,omitempty" xml:"artist,omitempty"`
 	Album  []AlbumID3Body `json:"album,omitempty" xml:"album,omitempty"`
 	Song   []ChildBody    `json:"song,omitempty" xml:"song,omitempty"`
+}
+
+type PlaylistBody struct {
+	ID        string `json:"id" xml:"id,attr"`
+	Name      string `json:"name" xml:"name,attr"`
+	Comment   string `json:"comment,omitempty" xml:"comment,attr,omitempty"`
+	Owner     string `json:"owner,omitempty" xml:"owner,attr,omitempty"`
+	Public    bool   `json:"public" xml:"public,attr"`
+	SongCount int    `json:"songCount" xml:"songCount,attr"`
+	Duration  int    `json:"duration" xml:"duration,attr"`
+	Created   string `json:"created" xml:"created,attr"`
+	Changed   string `json:"changed" xml:"changed,attr"`
+	CoverArt  string `json:"coverArt,omitempty" xml:"coverArt,attr,omitempty"`
+}
+
+type PlaylistsBody struct {
+	Playlist []PlaylistBody `json:"playlist" xml:"playlist"`
+}
+
+type PlaylistWithSongsBody struct {
+	PlaylistBody
+	Entry []ChildBody `json:"entry,omitempty" xml:"entry,omitempty"`
 }
 
 func baseResp(status string) *response {

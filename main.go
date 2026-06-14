@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/DwifteJB/aplsonic/src/cmd/createAccount"
+	resetadmin "github.com/DwifteJB/aplsonic/src/cmd/reset-admin"
 	"github.com/DwifteJB/aplsonic/src/serve"
 )
 
@@ -22,7 +23,9 @@ func main() {
 		createAccount.CMD(args[2:])
 	case "serve":
 		serve.Serve()
+	case "reset-admin":
+		resetadmin.CMD()
 	default:
-		println("Unknown command. Available commands: create-account, serve")
+		println("Unknown command. Available commands: create-account, serve, reset-admin")
 	}
 }

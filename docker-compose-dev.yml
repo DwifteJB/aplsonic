@@ -32,20 +32,6 @@ services:
       - versity_s3:/data/s3
       - versity_iam:/data/iam
 
-  aplsonic:
-    image: ghcr.io/dwiftejb/aplsonic:latest
-    build: .
-    container_name: aplsonic
-    restart: unless-stopped
-    depends_on:
-      - tidb
-      - versitygw
-    ports:
-      - "4533:4533" # subsonic api
-      - "4534:4534" # admin panel
-    volumes:
-      - ./configuration.docker.yml:/app/configuration.yml:ro
-
 volumes:
   tidb_data:
   versity_s3:

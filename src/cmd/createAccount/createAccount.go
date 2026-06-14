@@ -16,7 +16,6 @@ import (
 	"github.com/DwifteJB/aplsonic/src/db"
 	"github.com/DwifteJB/aplsonic/src/db/schema"
 	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
 )
 
 const loginURL = "https://music.apple.com"
@@ -50,7 +49,7 @@ func CMD(otherArgs []string) {
 func captureAppleCookies() ([]applemusic.Cookie, error) {
 	fmt.Println("Opening Apple Music - sign in, then close the browser window when done.")
 
-	u := launcher.New().Headless(false).MustLaunch()
+	u := applemusic.NewLauncher().Headless(false).MustLaunch()
 	browser := rod.New().ControlURL(u).MustConnect()
 	defer browser.MustClose()
 

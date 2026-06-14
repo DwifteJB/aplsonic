@@ -15,7 +15,8 @@ const (
 )
 
 type Client struct {
-	Storefront string
+	Storefront     string
+	MediaUserToken string
 }
 
 // NewClientFromCookies builds a client from a user's Netscape cookie jar. The
@@ -29,7 +30,7 @@ func NewClientFromCookies(netscape string) (*Client, error) {
 	if storefront == "" {
 		storefront = "us"
 	}
-	return &Client{Storefront: storefront}, nil
+	return &Client{Storefront: storefront, MediaUserToken: mut}, nil
 }
 
 func parseCookies(netscape string) (mediaUserToken, storefront string) {
@@ -82,6 +83,115 @@ func HasMediaUserToken(netscape string) bool {
 func (c *Client) get(path string, params url.Values) ([]byte, error) {
 	params.Set("l", apiLanguage)
 	return browserGet(path, params)
+}
+
+func (c *Client) getMe(fullURL string) ([]byte, error) {
+	u, err := url.Parse(fullURL)
+	if err != nil {
+		return nil, err
+	}
+	return browserDo("GET", u.Path, u.Query(), nil, c.MediaUserToken)
+}
+
+// gets the users playlists w/ pagination
+func (c *Client) GetLibraryPlaylists() ([]Resource, error) {
+	var all []Resource
+	nextURL := fmt.Sprintf("%s/v1/me/library/playlists?limit=100&l=%s", ampAPIURL, apiLanguage)
+	for nextURL != "" {
+		data, err := c.getMe(nextURL)
+		if err != nil {
+			return all, err
+		}
+		var page ResourceList
+		if err := json.Unmarshal(data, &page); err != nil {
+			return all, err
+		}
+		all = append(all, page.Data...)
+		if page.Next == "" {
+			break
+		}
+		nextURL = ampAPIURL + page.Next
+	}
+	return all, nil
+}
+
+// gets the tracks within the library playlist
+func (c *Client) GetLibraryPlaylistTracks(playlistID string) ([]Resource, error) {
+	var all []Resource
+	nextURL := fmt.Sprintf("%s/v1/me/library/playlists/%s/tracks?limit=100&l=%s", ampAPIURL, playlistID, apiLanguage)
+	for nextURL != "" {
+		data, err := c.getMe(nextURL)
+		if err != nil {
+			return all, err
+		}
+		var page ResourceList
+		if err := json.Unmarshal(data, &page); err != nil {
+			return all, err
+		}
+		all = append(all, page.Data...)
+		if page.Next == "" {
+			break
+		}
+		nextURL = ampAPIURL + page.Next
+	}
+	return all, nil
+}
+
+type trackRef struct {
+	ID   string `json:"id"`
+	Type string `json:"type"`
+}
+
+// converts a list of catalog song ids into the format needed for playlist creation
+func catalogTrackData(catalogSongIDs []string) []trackRef {
+	data := make([]trackRef, 0, len(catalogSongIDs))
+	for _, id := range catalogSongIDs {
+		if id == "" {
+			continue
+		}
+		data = append(data, trackRef{ID: id, Type: "songs"})
+	}
+	return data
+}
+
+// create a playlist
+func (c *Client) CreateLibraryPlaylist(name, description string, catalogSongIDs []string) (string, error) {
+	attrs := map[string]any{"name": name}
+	if description != "" {
+		attrs["description"] = description
+	}
+	body := map[string]any{"attributes": attrs}
+	if data := catalogTrackData(catalogSongIDs); len(data) > 0 {
+		body["relationships"] = map[string]any{
+			"tracks": map[string]any{"data": data},
+		}
+	}
+
+	resp, err := browserDo("POST", "/v1/me/library/playlists", url.Values{}, body, c.MediaUserToken)
+	if err != nil {
+		return "", err
+	}
+	var wrapper struct {
+		Data []Resource `json:"data"`
+	}
+	if err := json.Unmarshal(resp, &wrapper); err != nil {
+		return "", fmt.Errorf("parsing create playlist response: %w", err)
+	}
+	if len(wrapper.Data) == 0 {
+		return "", fmt.Errorf("create playlist returned no data")
+	}
+	return wrapper.Data[0].ID, nil
+}
+
+// add new tracks to an existing playlist (only catalog songs, not library songs)
+func (c *Client) AddTracksToLibraryPlaylist(playlistID string, catalogSongIDs []string) error {
+	data := catalogTrackData(catalogSongIDs)
+	if len(data) == 0 {
+		return nil
+	}
+	body := map[string]any{"data": data}
+	_, err := browserDo("POST", fmt.Sprintf("/v1/me/library/playlists/%s/tracks", playlistID), url.Values{}, body, c.MediaUserToken)
+	return err
 }
 
 func (c *Client) getURL(fullURL string) ([]byte, error) {

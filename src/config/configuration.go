@@ -36,8 +36,6 @@ type Config struct {
 
 	Port         int    `yaml:"port"`
 	WebPort      int    `yaml:"web_port"` // admin panel port; 0 or == Port serves it on the main port
-	AlbumArtPath string `yaml:"album_art_path"`
-	MusicPath    string `yaml:"music_path"`
 
 	SyncOnSearch bool          `yaml:"sync_on_search"`
 	Download     string        `yaml:"download"` // "getAlbum", "play", or "playAlbum"

@@ -3,13 +3,26 @@ package applemusic
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
+	"golang.org/x/sync/singleflight"
 	"gorm.io/gorm/clause"
 
 	"github.com/DwifteJB/aplsonic/src/db"
 	"github.com/DwifteJB/aplsonic/src/db/schema"
+)
+
+// syncing playlists so apple music playlists are reflected in the local db
+const playlistSyncTTL = 15 * time.Minute
+
+var (
+	playlistSyncGroup singleflight.Group
+	playlistSyncMu    sync.Mutex
+	playlistLastSync  = map[string]time.Time{}
 )
 
 // only if config.SyncOnSearch = true
@@ -137,6 +150,137 @@ func syncSongs(resources []Resource) {
 
 		db.DB.Clauses(clause.OnConflict{UpdateAll: true}).Create(&song)
 	}
+}
+
+func SyncAllPlaylists() {
+	var users []schema.User
+	db.DB.Find(&users)
+	for i := range users {
+		u := users[i]
+		if !HasMediaUserToken(u.AppleCookies) {
+			continue
+		}
+		if err := SyncUserPlaylists(&u); err != nil {
+			fmt.Printf("startup playlist sync failed for %s: %v\n", u.Username, err)
+			continue
+		}
+		var count int64
+		db.DB.Model(&schema.Playlist{}).Where("owner = ?", u.Username).Count(&count)
+		fmt.Printf("startup playlist sync: %s has %d playlists\n", u.Username, count)
+	}
+}
+
+// self explanatory, checks timer
+func SyncUserPlaylists(user *schema.User) error {
+	var count int64
+	db.DB.Model(&schema.Playlist{}).Where("owner = ?", user.Username).Count(&count)
+
+	if count > 0 {
+		playlistSyncMu.Lock()
+		last := playlistLastSync[user.Username]
+		playlistSyncMu.Unlock()
+		if !last.IsZero() && time.Since(last) < playlistSyncTTL {
+			return nil
+		}
+	}
+
+	_, err, _ := playlistSyncGroup.Do(user.Username, func() (any, error) {
+		return nil, syncUserPlaylists(user)
+	})
+	return err
+}
+
+// fetches from apple music updates / creates to local db
+func syncUserPlaylists(user *schema.User) error {
+	client, err := NewClientFromCookies(user.AppleCookies)
+	if err != nil {
+		return err
+	}
+
+	playlists, err := client.GetLibraryPlaylists()
+	if err != nil {
+		return err
+	}
+
+	for _, p := range playlists {
+		tracks, err := client.GetLibraryPlaylistTracks(p.ID)
+		if err != nil {
+			continue
+		}
+
+		var songIDs []string
+		var trackResources []Resource
+		for _, t := range tracks {
+			catID := ""
+			if t.Attributes.PlayParams != nil {
+				catID = t.Attributes.PlayParams.CatalogID
+				if catID == "" {
+					catID = t.Attributes.PlayParams.PurchasedID
+				}
+			}
+			if catID == "" {
+				continue
+			}
+			t.ID = catID
+			songIDs = append(songIDs, catID)
+			trackResources = append(trackResources, t)
+		}
+
+		syncSongs(trackResources)
+
+		pl := schema.Playlist{
+			ID:      p.ID,
+			AppleID: p.ID,
+			Source:  "apple",
+			Owner:   user.Username,
+			Name:    p.Attributes.Name,
+			Public:  p.Attributes.IsPublic,
+		}
+		if p.Attributes.Description != nil {
+			pl.Comment = p.Attributes.Description.Standard
+		}
+		if p.Attributes.Artwork != nil {
+			pl.CoverArt = FormatArtworkURL(p.Attributes.Artwork.URL)
+		}
+		pl.Fingerprint = playlistFingerprint(pl.Name, songIDs)
+		now := time.Now()
+		pl.SyncedAt = &now
+
+		var existing schema.Playlist
+		unchanged := db.DB.First(&existing, "id = ?", p.ID).Error == nil && existing.Fingerprint == pl.Fingerprint
+
+		db.DB.Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"apple_id", "source", "owner", "name", "public", "comment", "cover_art", "fingerprint", "synced_at",
+			}),
+		}).Create(&pl)
+
+		if unchanged {
+			continue
+		}
+
+		db.DB.Where("playlist_id = ?", p.ID).Delete(&schema.PlaylistEntry{})
+		for i, sid := range songIDs {
+			db.DB.Create(&schema.PlaylistEntry{PlaylistID: p.ID, SongID: sid, Position: i})
+		}
+	}
+
+	playlistSyncMu.Lock()
+	playlistLastSync[user.Username] = time.Now()
+	playlistSyncMu.Unlock()
+	return nil
+}
+
+func playlistFingerprint(name string, songIDs []string) string {
+	h := sha256.New()
+	h.Write([]byte(name))
+	h.Write([]byte{0})
+	for _, id := range songIDs {
+		h.Write([]byte(id))
+		h.Write([]byte{0})
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // derive 16 bit artist ID

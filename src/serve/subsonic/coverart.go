@@ -9,8 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/DwifteJB/aplsonic/src/config"
 )
 
 // uses the "id" param as the art URL, which is how the Subsonic clients expect it.
@@ -45,10 +43,7 @@ func GetCoverArt(w http.ResponseWriter, r *http.Request) {
 // fetchOrCacheArt returns the image bytes for artURL, hitting the cache first.
 // TODO: use diff cache than file? maybe put some in memory?
 func fetchOrCacheArt(artURL string) ([]byte, string, error) {
-	artDir := config.AppConfig.AlbumArtPath
-	if artDir == "" {
-		artDir = "./data/art"
-	}
+	artDir := "./data/art"
 
 	cachePath := artCachePath(artDir, artURL)
 

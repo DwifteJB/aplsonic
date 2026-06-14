@@ -18,22 +18,28 @@ import (
 func Serve() {
 	dsn := config.GenerateDSN()
 	if err := db.Connect(dsn); err != nil {
+		fmt.Printf("Failed to connect to database: %v\n", err)
 		panic(err)
 	}
 
 	if err := storage.Init(); err != nil {
+		fmt.Printf("Failed to initialize storage: %v\n", err)
 		panic(err)
 	}
 
 	if err := admin.EnsureAdmin(); err != nil {
+		fmt.Printf("Failed to ensure admin user exists: %v\n", err)
 		panic(err)
 	}
 
 	// admin token monitah
 	admin.StartTokenMonitor()
 
-	// keep a browser warm so the first amp-api request is fast
-	go applemusic.Warm()
+	// keep a browser warm so the first amp-api request is fast, then import playlists
+	go func() {
+		applemusic.Warm()
+		applemusic.SyncAllPlaylists()
+	}()
 
 	r := chi.NewRouter()
 
@@ -83,6 +89,11 @@ func Serve() {
 		{"/rest/unstar", subsonic.Unstar},
 		{"/rest/getStarred", subsonic.GetStarred},
 		{"/rest/getStarred2", subsonic.GetStarred2},
+		{"/rest/getPlaylists", subsonic.GetPlaylists},
+		{"/rest/getPlaylist", subsonic.GetPlaylist},
+		{"/rest/createPlaylist", subsonic.CreatePlaylist},
+		{"/rest/updatePlaylist", subsonic.UpdatePlaylist},
+		{"/rest/deletePlaylist", subsonic.DeletePlaylist},
 	}
 
 	// register each route, plus the .view variant some clients use
@@ -102,5 +113,9 @@ func Serve() {
 	}
 
 	fmt.Printf("Starting server on port %d...\n", config.AppConfig.Port)
-	http.ListenAndServe(fmt.Sprintf(":%d", config.AppConfig.Port), r)
+	err := http.ListenAndServe(fmt.Sprintf(":%d", config.AppConfig.Port), r)
+	if err != nil {
+		fmt.Printf("Failed to start server: %v, is there something on the same port?\n", err)
+		panic(err)
+	}
 }
