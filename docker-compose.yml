@@ -14,7 +14,25 @@ services:
       - -initialize-insecure
     volumes:
       - tidb_data:/tmp/tidb
-    
+
+  versitygw:
+    image: ghcr.io/versity/versitygw:latest
+    container_name: versitygw
+    restart: unless-stopped
+    ports:
+      - "7070:7070" # s3 api
+    environment:
+      ROOT_ACCESS_KEY: aplsonic
+      ROOT_SECRET_KEY: aplsonic-secret
+      VGW_PORT: ":7070"
+      VGW_BACKEND: posix
+      VGW_BACKEND_ARGS: /data/s3
+      VGW_IAM_DIR: /data/iam
+    volumes:
+      - versity_s3:/data/s3
+      - versity_iam:/data/iam
+
 volumes:
   tidb_data:
-  
+  versity_s3:
+  versity_iam:

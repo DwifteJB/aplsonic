@@ -7,8 +7,10 @@ import (
 	"unicode"
 
 	"github.com/DwifteJB/aplsonic/src/applemusic"
+	"github.com/DwifteJB/aplsonic/src/config"
 	"github.com/DwifteJB/aplsonic/src/db"
 	"github.com/DwifteJB/aplsonic/src/db/schema"
+	"github.com/DwifteJB/aplsonic/src/download"
 )
 
 func GetAlbum(w http.ResponseWriter, r *http.Request) {
@@ -55,6 +57,11 @@ func GetAlbum(w http.ResponseWriter, r *http.Request) {
 	body.Song = make([]ChildBody, len(songs))
 	for i, s := range songs {
 		body.Song[i] = songToChild(s)
+	}
+
+	// getAlbum mode: background-download the album's audio on open
+	if config.AppConfig.Download == "getAlbum" {
+		go download.EnsureAlbum(user, id)
 	}
 
 	OK(w, r, func(resp *response) {

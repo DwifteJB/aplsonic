@@ -1,5 +1,3 @@
-// TODO: add downloading album / song
-
 package gamdl
 
 import (
@@ -68,7 +66,7 @@ func (g *GamDL) Command(ctx context.Context, args ...string) (*exec.Cmd, error) 
 		return nil, errors.New("gamdl runner is not initialized")
 	}
 
-	gamdlArgs := []string{"--cookie-path", g.CookiePath}
+	gamdlArgs := []string{"--cookies-path", g.CookiePath}
 	gamdlArgs = append(gamdlArgs, args...)
 
 	return g.Runner.Command(ctx, gamdlArgs...), nil

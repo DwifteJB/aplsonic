@@ -21,6 +21,16 @@ type dbConfig struct {
 	Database string `yaml:"database"`
 }
 
+type storageConfig struct {
+	Endpoint      string `yaml:"endpoint"`       // s3 endpoint, e.g. localhost:7070
+	Region        string `yaml:"region"`        // s3 region, e.g. us-east-1
+	AccessKey     string `yaml:"access_key"`
+	SecretKey     string `yaml:"secret_key"`
+	Bucket        string `yaml:"bucket"`
+	UseSSL        bool   `yaml:"use_ssl"`        // false for local versitygw
+	DownloadCodec string `yaml:"download_codec"` // gamdl --song-codec-priority
+}
+
 type Config struct {
 	Database dbConfig `yaml:"database"`
 
@@ -29,8 +39,9 @@ type Config struct {
 	AlbumArtPath string `yaml:"album_art_path"`
 	MusicPath    string `yaml:"music_path"`
 
-	SyncOnSearch bool   `yaml:"sync_on_search"`
-	Download     string `yaml:"download"` // "getAlbum" or "play"
+	SyncOnSearch bool          `yaml:"sync_on_search"`
+	Download     string        `yaml:"download"` // "getAlbum", "play", or "playAlbum"
+	Storage      storageConfig `yaml:"storage"`
 
 	// experimental token monitor settings
 	TokenCheckHours int  `yaml:"token_check_hours"` // how often to re-validate tokens

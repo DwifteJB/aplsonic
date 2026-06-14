@@ -9,6 +9,7 @@ import (
 	"github.com/DwifteJB/aplsonic/src/db"
 	"github.com/DwifteJB/aplsonic/src/serve/admin"
 	"github.com/DwifteJB/aplsonic/src/serve/subsonic"
+	"github.com/DwifteJB/aplsonic/src/storage"
 	"github.com/go-chi/chi/v5"
 
 	middleware "github.com/go-chi/chi/v5/middleware"
@@ -17,6 +18,10 @@ import (
 func Serve() {
 	dsn := config.GenerateDSN()
 	if err := db.Connect(dsn); err != nil {
+		panic(err)
+	}
+
+	if err := storage.Init(); err != nil {
 		panic(err)
 	}
 
@@ -72,6 +77,8 @@ func Serve() {
 		{"/rest/getArtists", subsonic.GetArtists},
 		{"/rest/getIndexes", subsonic.GetIndexes},
 		{"/rest/getSong", subsonic.GetSong},
+		{"/rest/stream", subsonic.Stream},
+		{"/rest/download", subsonic.Download},
 		{"/rest/star", subsonic.Star},
 		{"/rest/unstar", subsonic.Unstar},
 		{"/rest/getStarred", subsonic.GetStarred},

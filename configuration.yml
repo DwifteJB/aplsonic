@@ -10,7 +10,16 @@ web_port: 4534 # admin can be 0
 album_art_path: ./data/art
 music_path: ./data/music
 sync_on_search: false
-download: "getAlbum" # "getAlbum" or "play"
+download: "getAlbum" # "getAlbum" (on album open), "play" (on stream), or "playAlbum" (on stream, then rest of album in bg)
+
+storage:
+  endpoint: localhost:7070 # versitygw s3 endpoint
+  region: us-east-1
+  access_key: aplsonic
+  secret_key: aplsonic-secret
+  bucket: aplsonic-music
+  use_ssl: false
+  download_codec: aac-web # gamdl --song-codec-priority
 
 token_check_hours: 6 # how often the server re-validates Apple tokens (0 disables the monitor)
 token_warn_days: 7   # flag tokens expiring within this many days
