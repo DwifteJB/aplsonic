@@ -30,7 +30,7 @@ FROM debian:bookworm-slim AS bento4
 ENV DEBIAN_FRONTEND=noninteractive
 ARG TARGETARCH
 ARG BENTO4_VERSION=1.6.0-641
-RUN --mount=type=cache,target=/bento4/build,id=bento4-build-${TARGETARCH} \
+RUN --mount=type=cache,target=/bento4-build,id=bento4-build-${TARGETARCH} \
     set -eux; \
     apt-get update; \
     mkdir -p /out; \
@@ -44,9 +44,9 @@ RUN --mount=type=cache,target=/bento4/build,id=bento4-build-${TARGETARCH} \
         apt-get install -y --no-install-recommends ca-certificates git cmake g++ make; \
         git clone --depth 1 --branch "v${BENTO4_VERSION}" \
             https://github.com/axiomatic-systems/Bento4.git /bento4; \
-        cmake -S /bento4 -B /bento4/build -DCMAKE_BUILD_TYPE=Release; \
-        cmake --build /bento4/build --target mp4decrypt -j"$(nproc)"; \
-        cp /bento4/build/mp4decrypt /out/mp4decrypt; \
+        cmake -S /bento4 -B /bento4-build -DCMAKE_BUILD_TYPE=Release; \
+        cmake --build /bento4-build --target mp4decrypt -j"$(nproc)"; \
+        cp /bento4-build/mp4decrypt /out/mp4decrypt; \
     fi; \
     chmod +x /out/mp4decrypt; \
     rm -rf /var/lib/apt/lists/*
