@@ -17,6 +17,12 @@ type User struct {
 
 	AppleCookies string `json:"-" xml:"-" gorm:"type:longtext"`
 
+	// apple token help
+	AppleTokenExpiresAt     *time.Time `json:"-" xml:"-"`
+	AppleTokenStatus        string     `json:"-" xml:"-" gorm:"type:varchar(16);default:'unknown'"`
+	AppleTokenLastCheckedAt *time.Time `json:"-" xml:"-"`
+	AppleTokenLastError     string     `json:"-" xml:"-" gorm:"type:varchar(512)"`
+
 	MaxBitRate        int        `json:"maxBitRate" xml:"maxBitRate" gorm:"default:0"`
 	AvatarLastChanged *time.Time `json:"avatarLastChanged,omitempty" xml:"avatarLastChanged,omitempty"`
 

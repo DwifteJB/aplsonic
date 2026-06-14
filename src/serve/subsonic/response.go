@@ -36,6 +36,8 @@ type response struct {
 	Artists       *ArtistsBody       `json:"artists,omitempty" xml:"artists,omitempty"`
 	Indexes       *IndexesBody       `json:"indexes,omitempty" xml:"indexes,omitempty"`
 	Song          *ChildBody         `json:"song,omitempty" xml:"song,omitempty"`
+	Starred       *StarredBody       `json:"starred,omitempty" xml:"starred,omitempty"`
+	Starred2      *Starred2Body      `json:"starred2,omitempty" xml:"starred2,omitempty"`
 }
 
 
@@ -95,6 +97,7 @@ type ChildBody struct {
 	ContentType string `json:"contentType,omitempty" xml:"contentType,attr,omitempty"`
 	Suffix      string `json:"suffix,omitempty" xml:"suffix,attr,omitempty"`
 	Type        string `json:"type,omitempty" xml:"type,attr,omitempty"`
+	Starred     string `json:"starred,omitempty" xml:"starred,attr,omitempty"`
 }
 
 type AlbumID3Body struct {
@@ -108,6 +111,7 @@ type AlbumID3Body struct {
 	Year      int         `json:"year,omitempty" xml:"year,attr,omitempty"`
 	Genre     string      `json:"genre,omitempty" xml:"genre,attr,omitempty"`
 	Created   string      `json:"created" xml:"created,attr"`
+	Starred   string      `json:"starred,omitempty" xml:"starred,attr,omitempty"`
 	Song      []ChildBody `json:"song,omitempty" xml:"song,omitempty"`
 }
 
@@ -116,6 +120,7 @@ type ArtistID3Body struct {
 	Name       string         `json:"name" xml:"name,attr"`
 	CoverArt   string         `json:"coverArt,omitempty" xml:"coverArt,attr,omitempty"`
 	AlbumCount int            `json:"albumCount" xml:"albumCount,attr"`
+	Starred    string         `json:"starred,omitempty" xml:"starred,attr,omitempty"`
 	Album      []AlbumID3Body `json:"album,omitempty" xml:"album,omitempty"`
 }
 
@@ -150,6 +155,20 @@ type AlbumList2Body struct {
 
 type RandomSongsBody struct {
 	Song []ChildBody `json:"song" xml:"song"`
+}
+
+// getStarred: file-structure view (albums as directory Child elements)
+type StarredBody struct {
+	Artist []ArtistID3Body `json:"artist,omitempty" xml:"artist,omitempty"`
+	Album  []ChildBody     `json:"album,omitempty" xml:"album,omitempty"`
+	Song   []ChildBody     `json:"song,omitempty" xml:"song,omitempty"`
+}
+
+// getStarred2: ID3 view (albums as AlbumID3 elements)
+type Starred2Body struct {
+	Artist []ArtistID3Body `json:"artist,omitempty" xml:"artist,omitempty"`
+	Album  []AlbumID3Body  `json:"album,omitempty" xml:"album,omitempty"`
+	Song   []ChildBody     `json:"song,omitempty" xml:"song,omitempty"`
 }
 
 type SearchResult3Body struct {

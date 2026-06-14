@@ -1,4 +1,3 @@
-
 database:
   host: localhost
   port: 4000
@@ -6,8 +5,13 @@ database:
   password: 
   database: test
 
-port: 4553 # should be 4533, but i have a server already running lol
+port: 4533 # should be 4533, but i have a server already running lol
+web_port: 4534 # admin can be 0
 album_art_path: ./data/art
 music_path: ./data/music
 sync_on_search: false
 download: "getAlbum" # "getAlbum" or "play"
+
+token_check_hours: 6 # how often the server re-validates Apple tokens (0 disables the monitor)
+token_warn_days: 7   # flag tokens expiring within this many days
+token_auto_renew: false # experimental, try auto renew tokens

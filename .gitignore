@@ -2,3 +2,19 @@ open-subsonic-api/
 docker-data/
 cookies.txt
 data/
+aplsonic
+docs/
+configuration.yml
+
+# ai shit so we dont get a bunch of peoples agents
+.claude/
+CLAUDE.MD
+AGENTS.MD
+.cursor/
+.aider*
+.cursor*
+.vscode/
+.idea/
+*.aider.chat.history
+*.cursorrules
+scratchpads/

@@ -87,7 +87,7 @@ func syncAlbums(resources []Resource) {
 			album.ArtistID = artistIDFromName(r.Attributes.ArtistName)
 		}
 
-		// if artist doesn't exist yet, create a stub so we have an ID to link to. This is possible because albums are returned in the search results before artists. :)
+		// create a stub artist to link to (albums come before artists in results)
 		if album.ArtistID != "" {
 			artist := schema.Artist{ID: album.ArtistID, Name: r.Attributes.ArtistName}
 			if album.CoverArt != "" {

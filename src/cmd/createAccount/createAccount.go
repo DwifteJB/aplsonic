@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DwifteJB/aplsonic/src/applemusic"
 	"github.com/DwifteJB/aplsonic/src/config"
 	"github.com/DwifteJB/aplsonic/src/db"
 	"github.com/DwifteJB/aplsonic/src/db/schema"
@@ -34,7 +35,7 @@ func CMD(otherArgs []string) {
 		panic(fmt.Errorf("cookie capture failed: %w", err))
 	}
 
-	cookieContent := renderCookies(cookies)
+	cookieContent := applemusic.RenderNetscape(cookies)
 
 	if err := os.WriteFile("cookies.txt", []byte(cookieContent), 0600); err != nil {
 		panic(fmt.Errorf("failed to write cookies.txt: %w", err))
@@ -46,8 +47,8 @@ func CMD(otherArgs []string) {
 	}
 }
 
-func captureAppleCookies() ([]*cookieEntry, error) {
-	fmt.Println("Opening Apple Music — sign in, then close the browser window when done.")
+func captureAppleCookies() ([]applemusic.Cookie, error) {
+	fmt.Println("Opening Apple Music - sign in, then close the browser window when done.")
 
 	u := launcher.New().Headless(false).MustLaunch()
 	browser := rod.New().ControlURL(u).MustConnect()
@@ -72,15 +73,14 @@ func captureAppleCookies() ([]*cookieEntry, error) {
 
 	// did not know golang had goto lol
 done:
-
 	raw, err := page.Cookies([]string{})
 	if err != nil {
 		return nil, fmt.Errorf("could not read cookies: %w", err)
 	}
 
-	var entries []*cookieEntry
+	entries := make([]applemusic.Cookie, 0, len(raw))
 	for _, c := range raw {
-		entries = append(entries, &cookieEntry{
+		entries = append(entries, applemusic.Cookie{
 			Domain:  c.Domain,
 			Path:    c.Path,
 			Secure:  c.Secure,
@@ -90,34 +90,6 @@ done:
 		})
 	}
 	return entries, nil
-}
-
-type cookieEntry struct {
-	Domain  string
-	Path    string
-	Secure  bool
-	Expires int64
-	Name    string
-	Value   string
-}
-
-// netscape-like cookie format for gamdl
-func renderCookies(cookies []*cookieEntry) string {
-	var sb strings.Builder
-	sb.WriteString("# Netscape HTTP Cookie File\n")
-	for _, c := range cookies {
-		includeSubdomains := "FALSE"
-		if strings.HasPrefix(c.Domain, ".") {
-			includeSubdomains = "TRUE"
-		}
-		secure := "FALSE"
-		if c.Secure {
-			secure = "TRUE"
-		}
-		fmt.Fprintf(&sb, "%s\t%s\t%s\t%s\t%d\t%s\t%s\n",
-			c.Domain, includeSubdomains, c.Path, secure, c.Expires, c.Name, c.Value)
-	}
-	return sb.String()
 }
 
 func createUser(cookieContent string) error {

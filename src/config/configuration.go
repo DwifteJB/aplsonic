@@ -25,11 +25,17 @@ type Config struct {
 	Database dbConfig `yaml:"database"`
 
 	Port         int    `yaml:"port"`
+	WebPort      int    `yaml:"web_port"` // admin panel port; 0 or == Port serves it on the main port
 	AlbumArtPath string `yaml:"album_art_path"`
 	MusicPath    string `yaml:"music_path"`
 
 	SyncOnSearch bool   `yaml:"sync_on_search"`
 	Download     string `yaml:"download"` // "getAlbum" or "play"
+
+	// experimental token monitor settings
+	TokenCheckHours int  `yaml:"token_check_hours"` // how often to re-validate tokens
+	TokenWarnDays   int  `yaml:"token_warn_days"`   // flag tokens expiring within this many days
+	TokenAutoRenew  bool `yaml:"token_auto_renew"`  // try a headless-browser renew for expiring tokens with a myacinfo cookie
 }
 
 var AppConfig *Config

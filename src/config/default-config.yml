@@ -7,7 +7,12 @@ database:
   database: test
 
 port: 4553
+web_port: 4554 # admin panel; set to 0 (or same as port) to serve it on the main port
 album_art_path: ./data/art
 music_path: ./data/music
 sync_on_search: false
 download: "getAlbum" # "getAlbum" or "play"
+
+token_check_hours: 6 # how often the server re-validates Apple tokens (0 disables the monitor)
+token_warn_days: 7   # flag tokens expiring within this many days
+token_auto_renew: false # EXPERIMENTAL: try a headless-browser silent renew before a token expires (needs a full cookie jar with myacinfo)

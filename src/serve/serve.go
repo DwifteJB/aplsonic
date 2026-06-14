@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/DwifteJB/aplsonic/src/applemusic"
 	"github.com/DwifteJB/aplsonic/src/config"
 	"github.com/DwifteJB/aplsonic/src/db"
+	"github.com/DwifteJB/aplsonic/src/serve/admin"
 	"github.com/DwifteJB/aplsonic/src/serve/subsonic"
 	"github.com/go-chi/chi/v5"
 
@@ -18,11 +20,40 @@ func Serve() {
 		panic(err)
 	}
 
+	if err := admin.EnsureAdmin(); err != nil {
+		panic(err)
+	}
+
+	// admin token monitah
+	admin.StartTokenMonitor()
+
+	// keep a browser warm so the first amp-api request is fast
+	go applemusic.Warm()
+
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
 
-	// ALL SUPPORTED ROUTES!!
+	// admin panel: own port if set, else mounted on the main port
+	webPort := config.AppConfig.WebPort
+	if webPort == 0 || webPort == config.AppConfig.Port {
+		r.Mount("/admin", admin.Router())
+	} else {
+		ar := chi.NewRouter()
+		ar.Use(middleware.Logger)
+		ar.Get("/", func(w http.ResponseWriter, req *http.Request) {
+			http.Redirect(w, req, "/admin/", http.StatusFound)
+		})
+		ar.Mount("/admin", admin.Router())
+		go func() {
+			fmt.Printf("Starting admin panel on http://localhost:%d/admin\n", webPort)
+			if err := http.ListenAndServe(fmt.Sprintf(":%d", webPort), ar); err != nil {
+				panic(err)
+			}
+		}()
+	}
+
+	// supported routes
 	routes := []struct {
 		path    string
 		handler http.HandlerFunc
@@ -41,18 +72,21 @@ func Serve() {
 		{"/rest/getArtists", subsonic.GetArtists},
 		{"/rest/getIndexes", subsonic.GetIndexes},
 		{"/rest/getSong", subsonic.GetSong},
+		{"/rest/star", subsonic.Star},
+		{"/rest/unstar", subsonic.Unstar},
+		{"/rest/getStarred", subsonic.GetStarred},
+		{"/rest/getStarred2", subsonic.GetStarred2},
 	}
 
-	// HANDLE THE ROUTES & .view!!!
+	// register each route, plus the .view variant some clients use
 	for _, route := range routes {
 		r.Get(route.path, route.handler)
 		r.Post(route.path, route.handler)
-		// some clients use .view, idk why
 		r.Get(route.path+".view", route.handler)
 		r.Post(route.path+".view", route.handler)
 	}
 
-	// HANDLE NOT SUPPORTED ROUTES!!!
+	// unsupported routes reply with a subsonic error, not an http error
 	for _, path := range subsonic.NotSupportedRoutes {
 		r.Get(path, subsonic.NotSupported)
 		r.Post(path, subsonic.NotSupported)
