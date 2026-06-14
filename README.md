@@ -11,15 +11,6 @@ Quite simply it runs a chromium instance [(rod)](https://github.com/go-rod/rod) 
 
 Music downloading is done via [gamdl](https://github.com/glomatico/gamdl) & can be configured to download whole playlists, only one song or whole albums. This will be stored inside whatever S3 server you provide & will be saved there so no more downloads can happen
 
-## Setting up the services
-
-For this, you will require a MySQL database (mysql or tidb) and a S3 instance. These can really easily be started with [Docker](https://www.docker.com/). To start you just need to ensure you have the docker-compose.yml and run:
-
-```bash
-docker compose up -d
-```
-
-This will start the TIDB instance, as well as the [Versitygw](https://github.com/versity/versitygw)  S3 Instance.
 
 ## Running the Docker image
 
@@ -36,9 +27,9 @@ docker run -d --name aplsonic \
   ghcr.io/dwiftejb/aplsonic:latest-aio
 ```
 
-That's it — the Subsonic API is on `http://localhost:4533`, the admin panel on `http://localhost:4534/admin`, and the one-time admin password is printed in the logs (`docker logs aplsonic`). The single `aplsonic-data` volume persists the database, downloaded music and IAM state.
+That's it! The Subsonic API is on `http://localhost:4533`, the admin panel on `http://localhost:4534/admin`, and the one-time admin password is printed in the logs (`docker logs aplsonic`). The single `aplsonic-data` volume persists the database, downloaded music and IAM state.
 
-> The bundled config lives at `/app/configuration.yml`; bind-mount your own over it to change ports/options. Running several services in one container is intentionally simple, not a scaling setup — for that, use compose (below). To run a one-off command (e.g. `reset-admin`) just append it: `docker run --rm -v aplsonic-data:/data ghcr.io/dwiftejb/aplsonic:latest-aio reset-admin`.
+> The bundled config lives at `/app/configuration.yml`; bind-mount your own over it to change ports/options. To run a one-off command (e.g. `reset-admin`) just append it: `docker run --rm -v aplsonic-data:/data ghcr.io/dwiftejb/aplsonic:latest-aio reset-admin`.
 
 ### With docker compose (recommended)
 
