@@ -28,13 +28,28 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 # build bento4 mp4decrypt for GAMDL
 FROM debian:bookworm-slim AS bento4
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        cmake g++ make git ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-RUN git clone --depth 1 --branch v1.6.0-641 \
-        https://github.com/axiomatic-systems/Bento4.git /bento4 \
-    && cmake -S /bento4 -B /bento4/build -DCMAKE_BUILD_TYPE=Release \
-    && cmake --build /bento4/build --target mp4decrypt -j"$(nproc)"
+ARG TARGETARCH
+ARG BENTO4_VERSION=1.6.0-641
+RUN --mount=type=cache,target=/bento4/build,id=bento4-build-${TARGETARCH} \
+    set -eux; \
+    apt-get update; \
+    mkdir -p /out; \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        apt-get install -y --no-install-recommends ca-certificates curl unzip; \
+        sdkver="$(echo "$BENTO4_VERSION" | tr '.' '-')"; \
+        curl -fsSL -o /tmp/bento4.zip \
+            "https://www.bok.net/Bento4/binaries/Bento4-SDK-${sdkver}.x86_64-unknown-linux.zip"; \
+        unzip -j /tmp/bento4.zip '*/bin/mp4decrypt' -d /out; \
+    else \
+        apt-get install -y --no-install-recommends ca-certificates git cmake g++ make; \
+        git clone --depth 1 --branch "v${BENTO4_VERSION}" \
+            https://github.com/axiomatic-systems/Bento4.git /bento4; \
+        cmake -S /bento4 -B /bento4/build -DCMAKE_BUILD_TYPE=Release; \
+        cmake --build /bento4/build --target mp4decrypt -j"$(nproc)"; \
+        cp /bento4/build/mp4decrypt /out/mp4decrypt; \
+    fi; \
+    chmod +x /out/mp4decrypt; \
+    rm -rf /var/lib/apt/lists/*
 
 # actual runtime
 FROM debian:bookworm-slim AS runtime
@@ -53,7 +68,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=bento4 /bento4/build/mp4decrypt /usr/local/bin/mp4decrypt
+COPY --from=bento4 /out/mp4decrypt /usr/local/bin/mp4decrypt
 
 # uv + gamdl
 ENV UV_INSTALL_DIR=/usr/local/bin \
