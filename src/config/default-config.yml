@@ -12,13 +12,17 @@ sync_on_search: false
 download: "getAlbum" # "getAlbum" (on album open), "play" (on stream), or "playAlbum" (on stream, then rest of album in bg)
 
 storage:
-  endpoint: localhost:7070 # versitygw s3 endpoint
+  mode: filesystem # "filesystem" (default) or "s3"
+  path: ./data # filesystem root; songs/ and art/ live under here (created if missing)
+  download_codec: aac-web # gamdl --song-codec-priority
+
+  # used only when mode: s3
+  endpoint: localhost:7070 # versitygw / minio s3 endpoint
   region: us-east-1
   access_key: aplsonic
   secret_key: aplsonic-secret
   bucket: aplsonic-music
   use_ssl: false
-  download_codec: aac-web # gamdl --song-codec-priority
 
 token_check_hours: 6 # how often the server re-validates Apple tokens (0 disables the monitor)
 token_warn_days: 7   # flag tokens expiring within this many days

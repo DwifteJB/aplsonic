@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/DwifteJB/aplsonic/src/storage"
 )
 
-// uses the "id" param as the art URL, which is how the Subsonic clients expect it.
-// warning: this *COULD* BREAK some clients, to be tested
 func GetCoverArt(w http.ResponseWriter, r *http.Request) {
 	if _, code, msg := Authenticate(r); code != 0 {
 		Fail(w, r, code, msg)
@@ -40,16 +39,12 @@ func GetCoverArt(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
-// fetchOrCacheArt returns the image bytes for artURL, hitting the cache first.
-// TODO: use diff cache than file? maybe put some in memory?
+// fetchOrCacheArt returns the image bytes for artURL, hitting the storage cache first.
 func fetchOrCacheArt(artURL string) ([]byte, string, error) {
-	artDir := "./data/art"
+	key := artKey(artURL)
 
-	cachePath := artCachePath(artDir, artURL)
-
-	// try read, see if cache has it
-	if data, err := os.ReadFile(cachePath); err == nil {
-		return data, contentTypeForPath(cachePath), nil
+	if data, ok := storage.GetArt(key); ok {
+		return data, contentTypeForPath(key), nil
 	}
 
 	// nope? get from CDN :(
@@ -72,21 +67,15 @@ func fetchOrCacheArt(artURL string) ([]byte, string, error) {
 		ct = contentTypeForPath(artURL)
 	}
 
-	// check if paths exist
-	if err := os.MkdirAll(filepath.Dir(cachePath), 0755); err != nil {
-		return nil, "", fmt.Errorf("creating art cache dir: %w", err)
-	}
-	_ = os.WriteFile(cachePath, data, 0644)
+	_ = storage.PutArt(key, data)
 
 	return data, ct, nil
 }
 
-
-// gets proper path for caching an art URL by hashing the URL and preserving the extension.
-func artCachePath(artDir, artURL string) string {
+// hashes the art URL into a cache key, preserving the extension.
+func artKey(artURL string) string {
 	sum := sha256.Sum256([]byte(artURL))
-	name := hex.EncodeToString(sum[:]) + extFromURL(artURL)
-	return filepath.Join(artDir, name)
+	return hex.EncodeToString(sum[:]) + extFromURL(artURL)
 }
 
 // gets the extension (ignores all params and such)

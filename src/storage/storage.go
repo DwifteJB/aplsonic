@@ -1,97 +1,104 @@
 package storage
 
 import (
-	"context"
 	"errors"
-	"fmt"
+	"io"
+	"time"
 
 	"github.com/DwifteJB/aplsonic/src/config"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
-var (
-	client *minio.Client
-	bucket string
-)
-
-// when not configured
 var ErrNotConfigured = errors.New("storage not configured")
 
+type ObjectInfo struct {
+	Size         int64
+	LastModified time.Time
+}
+
+type Backend interface {
+	HasSong(id string) bool
+	PutSong(id, localPath, contentType string) (int64, error)
+	GetSong(id string) (io.ReadSeekCloser, ObjectInfo, error)
+
+	GetArt(key string) ([]byte, bool)
+	PutArt(key string, data []byte) error
+}
+
+var backend Backend
+
 func Init() error {
-	s := config.AppConfig.Storage
-	if s.Endpoint == "" {
-		println("storage: no endpoint configured, audio streaming disabled")
-		return nil
+	mode := config.AppConfig.Storage.Mode
+	if mode == "" {
+		mode = "filesystem"
 	}
 
-	c, err := minio.New(s.Endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(s.AccessKey, s.SecretKey, ""),
-		Secure: s.UseSSL,
-		Region: s.Region,
-	})
-	if err != nil {
-		return fmt.Errorf("storage: %w", err)
-	}
-
-	ctx := context.Background()
-	exists, err := c.BucketExists(ctx, s.Bucket)
-	if err != nil {
-		return fmt.Errorf("storage: bucket check: %w", err)
-	}
-	if !exists {
-		if err := c.MakeBucket(ctx, s.Bucket, minio.MakeBucketOptions{Region: s.Region}); err != nil {
-			return fmt.Errorf("storage: make bucket: %w", err)
+	switch mode {
+	case "filesystem":
+		b, err := newFSBackend()
+		if err != nil {
+			return err
 		}
-		fmt.Printf("storage: created bucket %q\n", s.Bucket)
+		backend = b
+	case "s3":
+		b, err := newS3Backend()
+		if err != nil {
+			return err
+		}
+		if b == nil {
+			println("storage: s3 mode but no endpoint configured, audio streaming disabled")
+			return nil
+		}
+		backend = b
+	default:
+		return errors.New("storage: unknown mode " + mode)
 	}
 
-	client = c
-	bucket = s.Bucket
 	return nil
 }
 
 func Ready() bool {
-	return client != nil
+	return backend != nil
 }
 
-func ObjectKey(songID string) string {
-	return "songs/" + songID + ".m4a"
+func SongKey(id string) string {
+	return "songs/" + id + ".m4a"
 }
 
-func Has(songID string) bool {
-	if client == nil {
+func ObjectKey(id string) string {
+	return SongKey(id)
+}
+
+func Has(id string) bool {
+	if backend == nil {
 		return false
 	}
-	_, err := client.StatObject(context.Background(), bucket, ObjectKey(songID), minio.StatObjectOptions{})
-	return err == nil
+	return backend.HasSong(id)
 }
 
-func Put(songID, localPath, contentType string) (int64, error) {
-	if client == nil {
+func Put(id, localPath, contentType string) (int64, error) {
+	if backend == nil {
 		return 0, ErrNotConfigured
 	}
-	info, err := client.FPutObject(context.Background(), bucket, ObjectKey(songID), localPath, minio.PutObjectOptions{
-		ContentType: contentType,
-	})
-	if err != nil {
-		return 0, err
-	}
-	return info.Size, nil
+	return backend.PutSong(id, localPath, contentType)
 }
 
-func Get(songID string) (*minio.Object, minio.ObjectInfo, error) {
-	if client == nil {
-		return nil, minio.ObjectInfo{}, ErrNotConfigured
+func Get(id string) (io.ReadSeekCloser, ObjectInfo, error) {
+	if backend == nil {
+		return nil, ObjectInfo{}, ErrNotConfigured
 	}
-	obj, err := client.GetObject(context.Background(), bucket, ObjectKey(songID), minio.GetObjectOptions{})
-	if err != nil {
-		return nil, minio.ObjectInfo{}, err
+	return backend.GetSong(id)
+}
+
+func GetArt(key string) ([]byte, bool) {
+	if backend == nil {
+		return nil, false
 	}
-	info, err := obj.Stat()
-	if err != nil {
-		obj.Close()
-		return nil, minio.ObjectInfo{}, err
+	return backend.GetArt(key)
+}
+
+func PutArt(key string, data []byte) error {
+	if backend == nil {
+		return ErrNotConfigured
 	}
-	return obj, info, nil
+	return backend.PutArt(key, data)
 }

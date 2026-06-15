@@ -10,15 +10,11 @@ database:
 port: 4533
 web_port: 4534
 sync_on_search: false
-download: "getAlbum"
+download: "playAlbum"
 
 storage:
-  endpoint: versitygw:7070
-  region: us-east-1
-  access_key: aplsonic
-  secret_key: aplsonic-secret
-  bucket: aplsonic-music
-  use_ssl: false
+  mode: filesystem
+  path: /data
   download_codec: aac-web
 
 token_check_hours: 6

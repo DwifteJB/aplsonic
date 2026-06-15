@@ -22,20 +22,24 @@ type dbConfig struct {
 }
 
 type storageConfig struct {
-	Endpoint      string `yaml:"endpoint"`       // s3 endpoint, e.g. localhost:7070
-	Region        string `yaml:"region"`        // s3 region, e.g. us-east-1
-	AccessKey     string `yaml:"access_key"`
-	SecretKey     string `yaml:"secret_key"`
-	Bucket        string `yaml:"bucket"`
-	UseSSL        bool   `yaml:"use_ssl"`        // false for local versitygw
+	Mode string `yaml:"mode"` // "filesystem" (default) or "s3"
+	Path string `yaml:"path"` // filesystem root, songs/ and art/ live under here
+
+	Endpoint  string `yaml:"endpoint"` // s3 endpoint, e.g. localhost:7070
+	Region    string `yaml:"region"`   // s3 region, e.g. us-east-1
+	AccessKey string `yaml:"access_key"`
+	SecretKey string `yaml:"secret_key"`
+	Bucket    string `yaml:"bucket"`
+	UseSSL    bool   `yaml:"use_ssl"` // false for local versitygw
+
 	DownloadCodec string `yaml:"download_codec"` // gamdl --song-codec-priority
 }
 
 type Config struct {
 	Database dbConfig `yaml:"database"`
 
-	Port         int    `yaml:"port"`
-	WebPort      int    `yaml:"web_port"` // admin panel port; 0 or == Port serves it on the main port
+	Port    int `yaml:"port"`
+	WebPort int `yaml:"web_port"` // admin panel port; 0 or == Port serves it on the main port
 
 	SyncOnSearch bool          `yaml:"sync_on_search"`
 	Download     string        `yaml:"download"` // "getAlbum", "play", or "playAlbum"

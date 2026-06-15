@@ -15,23 +15,6 @@ services:
     volumes:
       - tidb_data:/tmp/tidb
 
-  versitygw:
-    image: ghcr.io/versity/versitygw:latest
-    container_name: versitygw
-    restart: unless-stopped
-    ports:
-      - "7070:7070" # s3 api
-    environment:
-      ROOT_ACCESS_KEY: aplsonic
-      ROOT_SECRET_KEY: aplsonic-secret
-      VGW_PORT: ":7070"
-      VGW_BACKEND: posix
-      VGW_BACKEND_ARGS: /data/s3
-      VGW_IAM_DIR: /data/iam
-    volumes:
-      - versity_s3:/data/s3
-      - versity_iam:/data/iam
-
   aplsonic:
     image: ghcr.io/dwiftejb/aplsonic:latest
     build: .
@@ -39,14 +22,13 @@ services:
     restart: unless-stopped
     depends_on:
       - tidb
-      - versitygw
     ports:
       - "4533:4533" # subsonic api
       - "4534:4534" # admin panel
     volumes:
-      - ./configuration.docker.yml:/app/configuration.yml:ro
+      - ./config/configuration.docker.yml:/app/configuration.yml:ro
+      - aplsonic_data:/data # music + album-art cache
 
 volumes:
   tidb_data:
-  versity_s3:
-  versity_iam:
+  aplsonic_data:

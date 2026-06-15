@@ -9,7 +9,7 @@ Want a client I definitely knows it works on? Use [Cosmodrome](https://github.co
 
 Quite simply it runs a chromium instance [(rod)](https://github.com/go-rod/rod) which mimics being an apple web client to get all the data. It uses [MusicKit](https://developer.apple.com/musickit/) to get all the results for any query. The search works by converting apple music results to subsonic results. You can change the configuration to automatically save albums to your library once you click on them, once you search or once some music is downloaded.
 
-Music downloading is done via [gamdl](https://github.com/glomatico/gamdl) & can be configured to download whole playlists, only one song or whole albums. This will be stored inside whatever S3 server you provide & will be saved there so no more downloads can happen
+Music downloading is done via [gamdl](https://github.com/glomatico/gamdl) & can be configured to download whole playlists, only one song or whole albums. By default music and cached album art are stored on the local **filesystem** under a configurable path (`storage.path`, created if it doesn't exist), so nothing is re-downloaded. You can instead point `storage.mode: s3` at any S3-compatible server (versitygw, MinIO, etc.).
 
 
 ## Running the Docker image
@@ -18,7 +18,7 @@ A prebuilt, multi-arch image (`linux/amd64` + `linux/arm64`) is published to the
 
 ### All-in-one (a single `docker run`)
 
-If you don't want to manage a separate database and S3 server, use the **`-aio`** image. It bundles MariaDB and Versitygw inside the same container and boots all three on startup, so there's nothing else to run:
+If you don't want to manage a separate database, use the **`-aio`** image. It bundles MariaDB inside the same container and stores music + album art on a filesystem volume, so there's nothing else to run:
 
 ```bash
 docker run -d --name aplsonic \
@@ -27,16 +27,16 @@ docker run -d --name aplsonic \
   ghcr.io/dwiftejb/aplsonic:latest-aio
 ```
 
-That's it! The Subsonic API is on `http://localhost:4533`, the admin panel on `http://localhost:4534/admin`, and the one-time admin password is printed in the logs (`docker logs aplsonic`). The single `aplsonic-data` volume persists the database, downloaded music and IAM state.
+The Subsonic API is on `http://localhost:4533`, the admin panel on `http://localhost:4534/admin`, and the one-time admin password is printed in the logs (`docker logs aplsonic`). The single `aplsonic-data` volume persists the database, downloaded music and the album-art cache.
 
 > The bundled config lives at `/app/configuration.yml`; bind-mount your own over it to change ports/options. To run a one-off command (e.g. `reset-admin`) just append it: `docker run --rm -v aplsonic-data:/data ghcr.io/dwiftejb/aplsonic:latest-aio reset-admin`.
 
 ### With docker compose (recommended)
 
-The bundled `docker-compose.yml` already wires up the app alongside TiDB and Versitygw and mounts `configuration.docker.yml` (which points at the in-network service hostnames). Just run:
+The bundled `docker-compose.yml` already wires up the app alongside TiDB and mounts `configuration.docker.yml` (which points at the in-network service hostnames). Music and album art persist on the `aplsonic_data` volume mounted at `/data`. Just run:
 
 ```bash
-docker compose up -d        # starts tidb, versitygw and aplsonic
+docker compose up -d        # starts tidb and aplsonic
 docker compose logs aplsonic | grep -i password   # grab the one-time admin password
 ```
 
@@ -44,12 +44,13 @@ The Subsonic API is then on `http://localhost:4533` and the admin panel on `http
 
 ### Standalone (`docker run`)
 
-If you already have your own MySQL/TiDB and S3, you can run just the container. You **must** mount a `configuration.yml` (the binary reads it from `/app/configuration.yml`); make sure its `database.host` and `storage.endpoint` are reachable from inside the container (not `localhost`):
+If you already have your own MySQL/TiDB, you can run just the container. You **must** mount a `configuration.yml` (the binary reads it from `/app/configuration.yml`); make sure its `database.host` (and `storage.endpoint`, if you set `storage.mode: s3`) is reachable from inside the container (not `localhost`). Mount a volume at `storage.path` so filesystem-stored music/art survives restarts:
 
 ```bash
 docker run -d --name aplsonic \
   -p 4533:4533 -p 4534:4534 \
   -v "$(pwd)/configuration.yml:/app/configuration.yml:ro" \
+  -v aplsonic-data:/data \
   ghcr.io/dwiftejb/aplsonic:latest
 ```
 
@@ -124,13 +125,16 @@ sync_on_search: false # if you want to save everything to library once its searc
 
 download: "getAlbum"  # "getAlbum" (on album open), "play" (on stream), or "playAlbum" (on stream, then rest of album in bg)
 storage:
+	mode: filesystem  # "filesystem" (default) or "s3"
+	path: ./data  # filesystem root; songs/ and art/ live under here (created if missing)
+	download_codec: aac-web  # codec, gamdl --song-codec-priority
+	# used only when mode: s3
 	endpoint: localhost:7070  # s3 endpoint
 	region: us-east-1 # s3 region
 	access_key: aplsonic # access key
 	secret_key: aplsonic-secret # secret key
 	bucket: aplsonic-music # bucket
 	use_ssl: false # whether to use SSL or not
-download_codec: aac-web  # codec, gamdl --song-codec-priority
 token_check_hours: 6  # how often the server re-validates Apple tokens (0 disables the monitor)
 token_warn_days: 7  # flag tokens expiring within this many days
 token_auto_renew: false  # EXPERIMENTAL: try a headless-browser silent renew before a token expires (needs a full cookie jar with myacinfo)

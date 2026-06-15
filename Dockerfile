@@ -93,8 +93,12 @@ COPY --from=build /aplsonic /app/aplsonic
 
 # create user for dis
 RUN useradd --create-home --uid 1000 aplsonic \
-    && chown -R aplsonic:aplsonic /app /opt/uv
+    && mkdir -p /data \
+    && chown -R aplsonic:aplsonic /app /opt/uv /data
 USER aplsonic
+
+# music + album-art cache; named volumes inherit /data's ownership so uid 1000 can write
+VOLUME ["/data"]
 
 # default ports, user can export more later
 EXPOSE 4533 4534
@@ -112,11 +116,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         mariadb-server \
     && rm -rf /var/lib/apt/lists/*
 
-# bundled s3 server
-COPY --from=ghcr.io/versity/versitygw:latest /usr/local/bin/versitygw /usr/local/bin/versitygw
-
 # entrypoint, config
-COPY configuration.aio.yml /app/configuration.yml
+COPY config/configuration.aio.yml /app/configuration.yml
 COPY docker/aio-entrypoint.sh /usr/local/bin/aio-entrypoint.sh
 RUN chmod +x /usr/local/bin/aio-entrypoint.sh
 
