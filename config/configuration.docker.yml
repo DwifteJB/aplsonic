@@ -10,7 +10,7 @@ database:
 port: 4533
 web_port: 4534
 sync_on_search: false
-download: "playAlbum"
+download: "play"
 
 storage:
   mode: filesystem
