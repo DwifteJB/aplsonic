@@ -66,7 +66,7 @@ func (g *GamDL) Command(ctx context.Context, args ...string) (*exec.Cmd, error) 
 		return nil, errors.New("gamdl runner is not initialized")
 	}
 
-	gamdlArgs := []string{"--cookies-path", g.CookiePath}
+	gamdlArgs := []string{"--no-config-file", "--cookies-path", g.CookiePath}
 	gamdlArgs = append(gamdlArgs, args...)
 
 	return g.Runner.Command(ctx, gamdlArgs...), nil
