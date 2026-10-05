@@ -2,6 +2,7 @@ package subsonic
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/DwifteJB/aplsonic/src/config"
@@ -21,27 +22,36 @@ func Download(w http.ResponseWriter, r *http.Request) {
 	serveAudio(w, r, true)
 }
 
-func holdUntilDownloaded(w http.ResponseWriter, r *http.Request, user *schema.User, song *schema.Song) error {
-	interval := config.AppConfig.StreamKeepalive
-	if interval <= 0 {
-		return download.EnsureSong(user, song)
+func holdUntilDownloaded(w http.ResponseWriter, r *http.Request, user *schema.User, song *schema.Song) (bool, error) {
+	hold := config.AppConfig.StreamHold
+	if hold <= 0 {
+		return true, download.EnsureSong(user, song)
 	}
 
 	done := make(chan error, 1)
 	go func() { done <- download.EnsureSong(user, song) }()
 
-	ticker := time.NewTicker(time.Duration(interval) * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case err := <-done:
-			return err
-		case <-ticker.C:
-			w.WriteHeader(http.StatusProcessing)
-		case <-r.Context().Done():
-			return r.Context().Err()
-		}
+	timer := time.NewTimer(time.Duration(hold) * time.Second)
+	defer timer.Stop()
+	select {
+	case err := <-done:
+		return true, err
+	case <-timer.C:
+		redirectToSelf(w, r)
+		return false, nil
+	case <-r.Context().Done():
+		return false, r.Context().Err()
 	}
+}
+
+func redirectToSelf(w http.ResponseWriter, r *http.Request) {
+	u := *r.URL
+	q := u.Query()
+	n, _ := strconv.Atoi(q.Get("hold"))
+	q.Set("hold", strconv.Itoa(n+1))
+	u.RawQuery = q.Encode()
+	w.Header().Set("Cache-Control", "no-store")
+	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
 }
 
 func serveAudio(w http.ResponseWriter, r *http.Request, attachment bool) {
@@ -82,8 +92,12 @@ func serveAudio(w http.ResponseWriter, r *http.Request, attachment bool) {
 
 	// check if storage has song
 	if !storage.Has(id) {
-		if err := holdUntilDownloaded(w, r, user, &song); err != nil {
+		ready, err := holdUntilDownloaded(w, r, user, &song)
+		if err != nil {
 			Fail(w, r, 0, "could not download song: "+err.Error())
+			return
+		}
+		if !ready {
 			return
 		}
 	}

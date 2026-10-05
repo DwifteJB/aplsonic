@@ -34,7 +34,7 @@ func GetAlbum(w http.ResponseWriter, r *http.Request) {
 		db.DB.Where("album_id = ?", id).Order("disc_number ASC, track ASC").Find(&songs)
 	}
 
-	if !albumInDB || len(songs) == 0 {
+	if !albumInDB || len(songs) == 0 || len(songs) < album.SongCount {
 		client, err := applemusic.NewClientFromCookies(user.AppleCookies)
 		if err != nil {
 			Fail(w, r, 0, "Apple Music client error: "+err.Error())

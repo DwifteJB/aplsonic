@@ -12,7 +12,7 @@ web_port: 4534
 sync_on_search: false
 download: "play"
 download_playlist: false
-
+stream_hold: 20
 
 storage:
   mode: filesystem
