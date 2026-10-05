@@ -11,6 +11,7 @@ web_port: 4554 # admin panel; set to 0 (or same as port) to serve it on the main
 sync_on_search: false
 download: "getAlbum" # "getAlbum" (on album open), "play" (on stream), or "playAlbum" (on stream, then rest of album in bg)
 download_playlist: false
+stream_keepalive: 5
 
 storage:
   mode: filesystem # "filesystem" (default) or "s3"

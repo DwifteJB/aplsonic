@@ -2,6 +2,7 @@ package subsonic
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/DwifteJB/aplsonic/src/config"
 	"github.com/DwifteJB/aplsonic/src/db"
@@ -18,6 +19,29 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 // serve as an attachment 
 func Download(w http.ResponseWriter, r *http.Request) {
 	serveAudio(w, r, true)
+}
+
+func holdUntilDownloaded(w http.ResponseWriter, r *http.Request, user *schema.User, song *schema.Song) error {
+	interval := config.AppConfig.StreamKeepalive
+	if interval <= 0 {
+		return download.EnsureSong(user, song)
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- download.EnsureSong(user, song) }()
+
+	ticker := time.NewTicker(time.Duration(interval) * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case err := <-done:
+			return err
+		case <-ticker.C:
+			w.WriteHeader(http.StatusProcessing)
+		case <-r.Context().Done():
+			return r.Context().Err()
+		}
+	}
 }
 
 func serveAudio(w http.ResponseWriter, r *http.Request, attachment bool) {
@@ -58,7 +82,7 @@ func serveAudio(w http.ResponseWriter, r *http.Request, attachment bool) {
 
 	// check if storage has song
 	if !storage.Has(id) {
-		if err := download.EnsureSong(user, &song); err != nil {
+		if err := holdUntilDownloaded(w, r, user, &song); err != nil {
 			Fail(w, r, 0, "could not download song: "+err.Error())
 			return
 		}

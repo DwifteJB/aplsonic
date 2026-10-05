@@ -44,6 +44,7 @@ type Config struct {
 	SyncOnSearch     bool          `yaml:"sync_on_search"`
 	Download         string        `yaml:"download"` // "getAlbum", "play", or "playAlbum"
 	DownloadPlaylist bool          `yaml:"download_playlist"`
+	StreamKeepalive  int           `yaml:"stream_keepalive"`
 	Storage          storageConfig `yaml:"storage"`
 
 	// experimental token monitor settings
