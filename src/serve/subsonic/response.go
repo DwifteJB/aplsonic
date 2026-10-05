@@ -40,6 +40,10 @@ type response struct {
 	Starred2      *Starred2Body      `json:"starred2,omitempty" xml:"starred2,omitempty"`
 	Playlists     *PlaylistsBody     `json:"playlists,omitempty" xml:"playlists,omitempty"`
 	Playlist      *PlaylistWithSongsBody `json:"playlist,omitempty" xml:"playlist,omitempty"`
+	Lyrics        *LyricsBody            `json:"lyrics,omitempty" xml:"lyrics,omitempty"`
+	LyricsList    *LyricsListBody        `json:"lyricsList,omitempty" xml:"lyricsList,omitempty"`
+
+	OpenSubsonicExtensions []OpenSubsonicExtension `json:"openSubsonicExtensions,omitempty" xml:"openSubsonicExtensions,omitempty"`
 }
 
 
@@ -199,6 +203,63 @@ type PlaylistsBody struct {
 type PlaylistWithSongsBody struct {
 	PlaylistBody
 	Entry []ChildBody `json:"entry,omitempty" xml:"entry,omitempty"`
+}
+
+// getLyrics (subsonic, plain text)
+type LyricsBody struct {
+	Artist string `json:"artist,omitempty" xml:"artist,attr,omitempty"`
+	Title  string `json:"title,omitempty" xml:"title,attr,omitempty"`
+	Value  string `json:"value,omitempty" xml:",chardata"`
+}
+
+// getLyricsBySongId (opensubsonic songLyrics)
+type LyricsListBody struct {
+	StructuredLyrics []StructuredLyricsBody `json:"structuredLyrics" xml:"structuredLyrics"`
+}
+
+type StructuredLyricsBody struct {
+	Kind          string           `json:"kind,omitempty" xml:"kind,attr,omitempty"`
+	DisplayArtist string           `json:"displayArtist,omitempty" xml:"displayArtist,attr,omitempty"`
+	DisplayTitle  string           `json:"displayTitle,omitempty" xml:"displayTitle,attr,omitempty"`
+	Lang          string           `json:"lang" xml:"lang,attr"`
+	Synced        bool             `json:"synced" xml:"synced,attr"`
+	Line          []LyricLineBody  `json:"line" xml:"line"`
+	Agents        []LyricAgentBody `json:"agents,omitempty" xml:"agent,omitempty"`
+	CueLine       []CueLineBody    `json:"cueLine,omitempty" xml:"cueLine,omitempty"`
+}
+
+type LyricLineBody struct {
+	Start *int64 `json:"start,omitempty" xml:"start,attr,omitempty"` // omitted when unsynced
+	Value string `json:"value" xml:",chardata"`
+}
+
+type LyricAgentBody struct {
+	ID   string `json:"id" xml:"id,attr"`
+	Role string `json:"role" xml:"role,attr"` // main, voice, bg, group
+	Name string `json:"name,omitempty" xml:"name,attr,omitempty"`
+}
+
+type CueLineBody struct {
+	Index   int       `json:"index" xml:"index,attr"`
+	AgentID string    `json:"agentId,omitempty" xml:"agentId,attr,omitempty"`
+	Start   int64     `json:"start" xml:"start,attr"`
+	End     int64     `json:"end" xml:"end,attr"`
+	Value   string    `json:"value" xml:"value,attr"`
+	Cue     []CueBody `json:"cue" xml:"cue"`
+}
+
+// byte offsets are inclusive into the parent cueLine value (utf-8)
+type CueBody struct {
+	Start     int64  `json:"start" xml:"start,attr"`
+	End       int64  `json:"end" xml:"end,attr"`
+	ByteStart int    `json:"byteStart" xml:"byteStart,attr"`
+	ByteEnd   int    `json:"byteEnd" xml:"byteEnd,attr"`
+	Value     string `json:"value" xml:",chardata"`
+}
+
+type OpenSubsonicExtension struct {
+	Name     string `json:"name" xml:"name,attr"`
+	Versions []int  `json:"versions" xml:"versions"`
 }
 
 func baseResp(status string) *response {

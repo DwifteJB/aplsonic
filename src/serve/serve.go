@@ -94,6 +94,9 @@ func Serve() {
 		{"/rest/createPlaylist", subsonic.CreatePlaylist},
 		{"/rest/updatePlaylist", subsonic.UpdatePlaylist},
 		{"/rest/deletePlaylist", subsonic.DeletePlaylist},
+		{"/rest/getLyrics", subsonic.GetLyrics},
+		{"/rest/getLyricsBySongId", subsonic.GetLyricsBySongID},
+		{"/rest/getOpenSubsonicExtensions", subsonic.GetOpenSubsonicExtensions},
 	}
 
 	// register each route, plus the .view variant some clients use

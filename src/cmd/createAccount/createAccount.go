@@ -20,8 +20,7 @@ import (
 
 const loginURL = "https://music.apple.com"
 
-// TODO: we need a easier way, maybe have users do tokens themselves, for now rod is fineee
-// also, it would be good to verify cookies on every login tbf
+// this is pretty much deprecated for the admin UI
 
 func CMD(otherArgs []string) {
 	dsn := config.GenerateDSN()
