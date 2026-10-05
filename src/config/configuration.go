@@ -41,9 +41,10 @@ type Config struct {
 	Port    int `yaml:"port"`
 	WebPort int `yaml:"web_port"` // admin panel port; 0 or == Port serves it on the main port
 
-	SyncOnSearch bool          `yaml:"sync_on_search"`
-	Download     string        `yaml:"download"` // "getAlbum", "play", or "playAlbum"
-	Storage      storageConfig `yaml:"storage"`
+	SyncOnSearch     bool          `yaml:"sync_on_search"`
+	Download         string        `yaml:"download"` // "getAlbum", "play", or "playAlbum"
+	DownloadPlaylist bool          `yaml:"download_playlist"`
+	Storage          storageConfig `yaml:"storage"`
 
 	// experimental token monitor settings
 	TokenCheckHours int  `yaml:"token_check_hours"` // how often to re-validate tokens

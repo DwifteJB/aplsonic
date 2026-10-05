@@ -52,6 +52,10 @@ func serveAudio(w http.ResponseWriter, r *http.Request, attachment bool) {
 		go download.EnsureAlbum(user, song.AlbumID)
 	}
 
+	if !attachment && config.AppConfig.DownloadPlaylist {
+		go download.EnsureSongPlaylists(user, id)
+	}
+
 	// check if storage has song
 	if !storage.Has(id) {
 		if err := download.EnsureSong(user, &song); err != nil {

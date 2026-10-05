@@ -124,6 +124,7 @@ web_port: 4554  # admin panel; set to 0 (or same as port) to serve it on the mai
 sync_on_search: false # if you want to save everything to library once its searched
 
 download: "getAlbum"  # "getAlbum" (on album open), "play" (on stream), or "playAlbum" (on stream, then rest of album in bg)
+download_playlist: false  # when a song is streamed, download the rest of the playlist(s) it is in in the background
 storage:
 	mode: filesystem  # "filesystem" (default) or "s3"
 	path: ./data  # filesystem root; songs/ and art/ live under here (created if missing)

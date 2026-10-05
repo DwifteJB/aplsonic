@@ -9,10 +9,8 @@ import (
 	"time"
 
 	"github.com/DwifteJB/aplsonic/src/applemusic"
-	"github.com/DwifteJB/aplsonic/src/config"
 	"github.com/DwifteJB/aplsonic/src/db"
 	"github.com/DwifteJB/aplsonic/src/db/schema"
-	"github.com/DwifteJB/aplsonic/src/download"
 )
 
 func GetPlaylists(w http.ResponseWriter, r *http.Request) {
@@ -70,10 +68,6 @@ func GetPlaylist(w http.ResponseWriter, r *http.Request) {
 	}
 
 	songs, count, duration := loadPlaylistSongs(id)
-
-	if config.AppConfig.Download == "playAlbum" {
-		go download.EnsurePlaylist(user, id)
-	}
 
 	body := PlaylistWithSongsBody{PlaylistBody: playlistToBody(playlist, count, duration)}
 	body.Entry = make([]ChildBody, len(songs))

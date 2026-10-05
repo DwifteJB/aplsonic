@@ -11,6 +11,8 @@ port: 4533
 web_port: 4534
 sync_on_search: false
 download: "play"
+download_playlist: false
+
 
 storage:
   mode: filesystem

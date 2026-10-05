@@ -187,3 +187,20 @@ func EnsurePlaylist(user *schema.User, playlistID string) {
 	}
 	wg.Wait()
 }
+
+func EnsureSongPlaylists(user *schema.User, songID string) {
+	if !storage.Ready() {
+		return
+	}
+
+	var playlistIDs []string
+	db.DB.Model(&schema.PlaylistEntry{}).
+		Where("song_id = ? AND playlist_id IN (?)", songID,
+			db.DB.Model(&schema.Playlist{}).Select("id").Where("owner = ?", user.Username)).
+		Distinct().
+		Pluck("playlist_id", &playlistIDs)
+
+	for _, playlistID := range playlistIDs {
+		EnsurePlaylist(user, playlistID)
+	}
+}
