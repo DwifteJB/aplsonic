@@ -28,9 +28,16 @@ func Search3(w http.ResponseWriter, r *http.Request) {
 
 	albumCount := intParam(r, "albumCount", 20)
 	songCount := intParam(r, "songCount", 20)
-	limit := max(albumCount, songCount)
+	artistCount := intParam(r, "artistCount", 20)
+	limit := max(albumCount, songCount, artistCount)
 	if limit > 50 {
 		limit = 50
+	}
+	if limit == 0 {
+		OK(w, r, func(resp *response) {
+			resp.SearchResult3 = &SearchResult3Body{}
+		})
+		return
 	}
 
 	// use the authenticated user's Apple Music cookies.
@@ -46,30 +53,31 @@ func Search3(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("Search query: %s, found %d albums and %d songs\n", q, len(results.Albums.Data), len(results.Songs.Data))
+	appleAlbums := firstResources(results.Albums, albumCount)
+	appleSongs := firstResources(results.Songs, songCount)
+	appleArtists := firstResources(results.Artists, artistCount)
+
+	fmt.Printf("Search query: %s, found %d albums, %d songs and %d artists\n", q, len(appleAlbums), len(appleSongs), len(appleArtists))
 
 	var albumBodies []AlbumID3Body
 	var songBodies []ChildBody
+	var artistBodies []ArtistID3Body
 
 	if config.AppConfig.SyncOnSearch {
 		applemusic.SyncSearchResults(results)
 
 		var albums []schema.Album
 		var songs []schema.Song
+		var artists []schema.Artist
 
-		if results.Albums != nil {
-			ids := make([]string, 0, len(results.Albums.Data))
-			for _, res := range results.Albums.Data {
-				ids = append(ids, res.ID)
-			}
-			db.DB.Where("id IN ?", ids).Limit(albumCount).Find(&albums)
+		if len(appleAlbums) > 0 {
+			db.DB.Where("id IN ?", resourceIDs(appleAlbums)).Find(&albums)
 		}
-		if results.Songs != nil {
-			ids := make([]string, 0, len(results.Songs.Data))
-			for _, res := range results.Songs.Data {
-				ids = append(ids, res.ID)
-			}
-			db.DB.Where("id IN ?", ids).Limit(songCount).Find(&songs)
+		if len(appleSongs) > 0 {
+			db.DB.Where("id IN ?", resourceIDs(appleSongs)).Find(&songs)
+		}
+		if len(appleArtists) > 0 {
+			db.DB.Where("id IN ?", resourceIDs(appleArtists)).Find(&artists)
 		}
 
 		albumBodies = make([]AlbumID3Body, len(albums))
@@ -80,39 +88,64 @@ func Search3(w http.ResponseWriter, r *http.Request) {
 		for i, s := range songs {
 			songBodies[i] = songToChild(s)
 		}
-	} else {
-		if results.Albums != nil {
-			n := len(results.Albums.Data)
-			if n > albumCount {
-				n = albumCount
-			}
-			albumBodies = make([]AlbumID3Body, n)
-			for i, res := range results.Albums.Data[:n] {
-				albumBodies[i] = appleAlbumToID3(res)
+		artistBodies = make([]ArtistID3Body, len(artists))
+		for i, a := range artists {
+			artistBodies[i] = ArtistID3Body{
+				ID:             a.ID,
+				Name:           a.Name,
+				CoverArt:       a.CoverArt,
+				AlbumCount:     a.AlbumCount,
+				ArtistImageURL: a.CoverArt,
+				SortName:       a.SortName,
 			}
 		}
-		if results.Songs != nil {
-			n := len(results.Songs.Data)
-			if n > songCount {
-				n = songCount
-			}
-			songBodies = make([]ChildBody, n)
-			for i, res := range results.Songs.Data[:n] {
-				songBodies[i] = appleSongToChild(res)
-			}
+	} else {
+		albumBodies = make([]AlbumID3Body, len(appleAlbums))
+		for i, res := range appleAlbums {
+			albumBodies[i] = appleAlbumToID3(res)
+		}
+		songBodies = make([]ChildBody, len(appleSongs))
+		for i, res := range appleSongs {
+			songBodies[i] = appleSongToChild(res)
+		}
+		artistBodies = make([]ArtistID3Body, len(appleArtists))
+		for i, res := range appleArtists {
+			artistBodies[i] = appleArtistToID3(res)
 		}
 	}
 
 	stars := loadStars(user.Username)
 	stars.markAlbums(albumBodies)
 	stars.markChildren(songBodies)
+	for i := range artistBodies {
+		artistBodies[i].Starred = stars["artist:"+artistBodies[i].ID]
+	}
 
 	OK(w, r, func(resp *response) {
 		resp.SearchResult3 = &SearchResult3Body{
-			Album: albumBodies,
-			Song:  songBodies,
+			Artist: artistBodies,
+			Album:  albumBodies,
+			Song:   songBodies,
 		}
 	})
+}
+
+func firstResources(list *applemusic.ResourceList, n int) []applemusic.Resource {
+	if list == nil {
+		return nil
+	}
+	if len(list.Data) > n {
+		return list.Data[:n]
+	}
+	return list.Data
+}
+
+func resourceIDs(resources []applemusic.Resource) []string {
+	ids := make([]string, len(resources))
+	for i, res := range resources {
+		ids[i] = res.ID
+	}
+	return ids
 }
 
 func intParam(r *http.Request, key string, def int) int {
@@ -186,6 +219,18 @@ func appleAlbumToID3(r applemusic.Resource) AlbumID3Body {
 		y := 0
 		fmt.Sscanf(r.Attributes.ReleaseDate[:4], "%d", &y)
 		body.Year = y
+	}
+	return body
+}
+
+func appleArtistToID3(r applemusic.Resource) ArtistID3Body {
+	body := ArtistID3Body{
+		ID:   r.ID,
+		Name: r.Attributes.Name,
+	}
+	if r.Attributes.Artwork != nil {
+		body.CoverArt = applemusic.FormatArtworkURL(r.Attributes.Artwork.URL)
+		body.ArtistImageURL = body.CoverArt
 	}
 	return body
 }

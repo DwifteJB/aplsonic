@@ -185,9 +185,9 @@ type Starred2Body struct {
 }
 
 type SearchResult3Body struct {
-	Artist []AlbumID3Body `json:"artist,omitempty" xml:"artist,omitempty"`
-	Album  []AlbumID3Body `json:"album,omitempty" xml:"album,omitempty"`
-	Song   []ChildBody    `json:"song,omitempty" xml:"song,omitempty"`
+	Artist []ArtistID3Body `json:"artist,omitempty" xml:"artist,omitempty"`
+	Album  []AlbumID3Body  `json:"album,omitempty" xml:"album,omitempty"`
+	Song   []ChildBody     `json:"song,omitempty" xml:"song,omitempty"`
 }
 
 type PlaylistBody struct {
