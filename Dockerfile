@@ -12,7 +12,7 @@ COPY web/admin web/admin
 RUN cd web/admin && npm run build
 
 # 2: build go bin
-FROM golang:1.25-bookworm AS build
+FROM golang:1.26-bookworm AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
@@ -76,7 +76,7 @@ ENV UV_INSTALL_DIR=/usr/local/bin \
     UV_TOOL_BIN_DIR=/usr/local/bin \
     UV_PYTHON_INSTALL_DIR=/opt/uv/python
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
-    && uv tool install gamdl \
+    && uv tool install "gamdl==3.9.1" \
     && rm -rf /root/.cache
 
 # chromium (wrap it so we can acc use it)

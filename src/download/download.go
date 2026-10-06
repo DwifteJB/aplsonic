@@ -2,6 +2,7 @@ package download
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -66,16 +67,22 @@ func downloadSong(user *schema.User, song *schema.Song) error {
 		url = fmt.Sprintf("https://music.apple.com/us/album/_/%s?i=%s", song.AlbumID, song.ID)
 	}
 	outDir := filepath.Join(tmp, "out")
-	cmd, err := g.Command(context.Background(),
-		"--output-path", outDir,
-		"--song-codec-priority", codec,
-		url,
-	)
-	if err != nil {
-		return err
-	}
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("gamdl failed for %s: %w", song.ID, err)
+	if err := downloadViaWorker(user, codec, url, outDir); err != nil {
+		if !errors.Is(err, gamdl.ErrWorkerUnavailable) {
+			return fmt.Errorf("gamdl failed for %s: %w", song.ID, err)
+		}
+		fmt.Printf("download: %v, falling back to gamdl cli\n", err)
+		cmd, err := g.Command(context.Background(),
+			"--output-path", outDir,
+			"--song-codec-priority", codec,
+			url,
+		)
+		if err != nil {
+			return err
+		}
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("gamdl failed for %s: %w", song.ID, err)
+		}
 	}
 
 	file, err := findAudioFile(outDir)
@@ -99,6 +106,15 @@ func downloadSong(user *schema.User, song *schema.Song) error {
 
 	fmt.Printf("download: stored %s (%s) %d bytes\n", song.ID, song.Title, size)
 	return nil
+}
+
+func downloadViaWorker(user *schema.User, codec, url, outDir string) error {
+	w, err := gamdl.WorkerFor(user.Username, user.AppleCookies, codec)
+	if err != nil {
+		return err
+	}
+	_, err = w.Download(context.Background(), url, outDir)
+	return err
 }
 
 func findAudioFile(dir string) (string, error) {
