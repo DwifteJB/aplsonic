@@ -15,6 +15,26 @@ import (
 	middleware "github.com/go-chi/chi/v5/middleware"
 )
 
+func IgnoreCorsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// check if ignore cors is enabled in config
+		if config.AppConfig.IgnoreCORS {
+			// get current origin
+			origin := r.Header.Get("Origin")
+			if origin != "" {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+			} else {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+			}
+
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, HEAD, PUT, DELETE")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func Serve() {
 	dsn := config.GenerateDSN()
 	if err := db.Connect(dsn); err != nil {
@@ -44,7 +64,7 @@ func Serve() {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
-
+	r.Use(IgnoreCorsMiddleware)
 	// admin panel: own port if set, else mounted on the main port
 	webPort := config.AppConfig.WebPort
 	if webPort == 0 || webPort == config.AppConfig.Port {

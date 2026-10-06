@@ -42,7 +42,8 @@ type Config struct {
 	WebPort int `yaml:"web_port"` // admin panel port; 0 or == Port serves it on the main port
 
 	SyncOnSearch     bool          `yaml:"sync_on_search"`
-	Download         string        `yaml:"download"` // "getAlbum", "play", or "playAlbum"
+	Download         string        `yaml:"download"`    // "getAlbum", "play", or "playAlbum"
+	IgnoreCORS       bool          `yaml:"ignore_cors"` // set to false if you want to use a web client on a different domain than the server
 	DownloadPlaylist bool          `yaml:"download_playlist"`
 	StreamHold       int           `yaml:"stream_hold"`
 	Storage          storageConfig `yaml:"storage"`

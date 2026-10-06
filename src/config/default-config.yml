@@ -12,6 +12,7 @@ sync_on_search: false
 download: "getAlbum" # "getAlbum" (on album open), "play" (on stream), or "playAlbum" (on stream, then rest of album in bg)
 download_playlist: false
 stream_hold: 4 # seconds to hold a stream request while a song downloads before redirecting the client to retry; keep under 5 (libmpv network-timeout); 0 holds until done
+ignore_cors: true # set to false if you want to use a web client on a different domain than the server
 
 storage:
   mode: filesystem # "filesystem" (default) or "s3"
