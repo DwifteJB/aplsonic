@@ -2,6 +2,8 @@ import asyncio
 import json
 import os
 import sys
+import threading
+import time
 
 out = os.fdopen(os.dup(1), "w", buffering=1)
 os.dup2(2, 1)
@@ -38,8 +40,29 @@ def reply(obj):
     out.flush()
 
 
+def log(msg):
+    sys.stderr.write(f"gamdl worker: {msg}\n")
+    sys.stderr.flush()
+
+
+def read_requests(loop, queue):
+    buf = b""
+    while True:
+        chunk = os.read(0, 65536)
+        if not chunk:
+            loop.call_soon_threadsafe(queue.put_nowait, None)
+            return
+        buf += chunk
+        while b"\n" in buf:
+            line, buf = buf.split(b"\n", 1)
+            if line.strip():
+                loop.call_soon_threadsafe(queue.put_nowait, line.decode())
+
+
 async def handle(interface, temp_path, req, sem):
     async with sem:
+        started = time.monotonic()
+        log(f"start {req['id']} {req['url']}")
         try:
             base = AppleMusicBaseDownloader(
                 interface=interface,
@@ -57,8 +80,10 @@ async def handle(interface, temp_path, req, sem):
                 await downloader.download(item)
                 if item.final_path:
                     paths.append(item.final_path)
+            log(f"done {req['id']} in {time.monotonic() - started:.1f}s -> {paths}")
             reply({"id": req["id"], "ok": True, "paths": paths})
         except Exception as e:
+            log(f"error {req['id']} after {time.monotonic() - started:.1f}s: {type(e).__name__}: {e}")
             reply({"id": req["id"], "ok": False, "error": f"{type(e).__name__}: {e}"})
 
 
@@ -87,14 +112,13 @@ async def main():
     reply({"event": "ready"})
     sem = asyncio.Semaphore(workers)
     loop = asyncio.get_running_loop()
+    requests = asyncio.Queue()
+    threading.Thread(target=read_requests, args=(loop, requests), daemon=True).start()
     tasks = set()
     while True:
-        line = await loop.run_in_executor(None, sys.stdin.readline)
-        if not line:
+        line = await requests.get()
+        if line is None:
             break
-        line = line.strip()
-        if not line:
-            continue
         try:
             req = json.loads(line)
         except Exception:

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/DwifteJB/aplsonic/src/config"
 	"github.com/DwifteJB/aplsonic/src/db"
@@ -113,7 +114,9 @@ func downloadViaWorker(user *schema.User, codec, url, outDir string) error {
 	if err != nil {
 		return err
 	}
-	_, err = w.Download(context.Background(), url, outDir)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	_, err = w.Download(ctx, url, outDir)
 	return err
 }
 
