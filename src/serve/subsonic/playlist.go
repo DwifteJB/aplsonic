@@ -74,6 +74,7 @@ func GetPlaylist(w http.ResponseWriter, r *http.Request) {
 	for i, s := range songs {
 		body.Entry[i] = songToChild(s)
 	}
+	loadStars(user.Username).markChildren(body.Entry)
 
 	OK(w, r, func(resp *response) {
 		resp.Playlist = &body
@@ -137,6 +138,7 @@ func CreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	for i, s := range songs {
 		body.Entry[i] = songToChild(s)
 	}
+	loadStars(user.Username).markChildren(body.Entry)
 
 	OK(w, r, func(resp *response) {
 		resp.Playlist = &body

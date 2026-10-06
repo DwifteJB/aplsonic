@@ -9,7 +9,7 @@ import (
 
 // getRandomSongs handles GET/POST /rest/getRandomSongs
 func GetRandomSongs(w http.ResponseWriter, r *http.Request) {
-	_, code, msg := Authenticate(r)
+	user, code, msg := Authenticate(r)
 	if code != 0 {
 		Fail(w, r, code, msg)
 		return
@@ -45,6 +45,8 @@ func GetRandomSongs(w http.ResponseWriter, r *http.Request) {
 	for i, s := range songs {
 		children[i] = songToChild(s)
 	}
+
+	loadStars(user.Username).markChildren(children)
 
 	OK(w, r, func(resp *response) {
 		resp.RandomSongs = &RandomSongsBody{Song: children}

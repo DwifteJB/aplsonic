@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/DwifteJB/aplsonic/src/applemusic"
 	"github.com/DwifteJB/aplsonic/src/db"
 	"github.com/DwifteJB/aplsonic/src/db/schema"
 	"gorm.io/gorm/clause"
@@ -25,6 +26,8 @@ func Star(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now()
 	for _, it := range items {
+		ensureStarItem(user, it)
+
 		row := schema.Starred{
 			Username:  user.Username,
 			ItemID:    it.id,
@@ -96,6 +99,8 @@ func GetStarred(w http.ResponseWriter, r *http.Request) {
 			Genre:    a.Genre,
 			Duration: a.Duration,
 			Starred:  a.starred,
+
+			ExplicitStatus: a.ExplicitStatus,
 		}
 	}
 
@@ -249,6 +254,54 @@ func loadStarredArtists(ids []string, starredAt map[string]string) ([]ArtistID3B
 		}
 	}
 	return out, nil
+}
+
+type starMap map[string]string
+
+func loadStars(username string) starMap {
+	var rows []schema.Starred
+	db.DB.Where("username = ?", username).Find(&rows)
+	stars := make(starMap, len(rows))
+	for _, row := range rows {
+		stars[row.ItemType+":"+row.ItemID] = row.StarredAt.Format(time.RFC3339)
+	}
+	return stars
+}
+
+func (m starMap) markAlbums(albums []AlbumID3Body) {
+	for i := range albums {
+		albums[i].Starred = m["album:"+albums[i].ID]
+	}
+}
+
+func (m starMap) markChildren(children []ChildBody) {
+	for i := range children {
+		if children[i].IsDir {
+			children[i].Starred = m["album:"+children[i].ID]
+		} else {
+			children[i].Starred = m["song:"+children[i].ID]
+		}
+	}
+}
+
+func ensureStarItem(user *schema.User, it starItem) {
+	switch it.itemType {
+	case "song":
+		var song schema.Song
+		loadSong(user, it.id, &song)
+	case "album":
+		var count int64
+		if db.DB.Model(&schema.Album{}).Where("id = ?", it.id).Count(&count); count > 0 {
+			return
+		}
+		client, err := applemusic.NewClientFromCookies(user.AppleCookies)
+		if err != nil {
+			return
+		}
+		if resource, err := client.GetAlbum(it.id); err == nil {
+			applemusic.SyncAlbum(resource)
+		}
+	}
 }
 
 type starItem struct {

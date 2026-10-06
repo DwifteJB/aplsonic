@@ -17,6 +17,9 @@ type Artist struct {
 	CoverArt string `json:"coverArt,omitempty" xml:"coverArt,omitempty"`
 
 	AlbumCount int `json:"albumCount" xml:"albumCount"`
+
+	AppleID        string     `json:"-" xml:"-" gorm:"type:varchar(191);index"`
+	AlbumsSyncedAt *time.Time `json:"-" xml:"-"`
 }
 
 type Album struct {

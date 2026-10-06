@@ -28,10 +28,6 @@ func userBody(u *schema.User) UserBody {
 	}
 }
 
-func GetAvatar(w http.ResponseWriter, r *http.Request) {
-	// TODO: send some image bytes (maybe use funny cat pics lol)
-}
-
 // handles getting user info
 func GetUser(w http.ResponseWriter, r *http.Request) {
 	authed, code, msg := Authenticate(r)

@@ -13,6 +13,8 @@ import (
 	"github.com/DwifteJB/aplsonic/src/download"
 )
 
+const artistSyncTTL = 24 * time.Hour
+
 func GetAlbum(w http.ResponseWriter, r *http.Request) {
 	user, code, msg := Authenticate(r)
 	if code != 0 {
@@ -59,6 +61,25 @@ func GetAlbum(w http.ResponseWriter, r *http.Request) {
 		body.Song[i] = songToChild(s)
 	}
 
+	stars := loadStars(user.Username)
+	body.Starred = stars["album:"+id]
+	stars.markChildren(body.Song)
+
+	if body.ExplicitStatus == "" {
+		for _, s := range songs {
+			if s.ExplicitStatus == "explicit" {
+				body.ExplicitStatus = "explicit"
+				break
+			}
+			if s.ExplicitStatus == "clean" {
+				body.ExplicitStatus = "clean"
+			}
+		}
+		if body.ExplicitStatus != "" {
+			db.DB.Model(&schema.Album{}).Where("id = ?", id).Update("explicit_status", body.ExplicitStatus)
+		}
+	}
+
 	// getAlbum mode: background-download the album's audio on open
 	if config.AppConfig.Download == "getAlbum" {
 		go download.EnsureAlbum(user, id)
@@ -83,45 +104,57 @@ func GetArtist(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var artist schema.Artist
-	if res := db.DB.First(&artist, "id = ?", id); res.Error != nil {
+	if db.DB.First(&artist, "id = ?", id).Error != nil {
+		var song schema.Song
+		db.DB.Select("artist").Limit(1).Find(&song, "artist_id = ?", id)
+		artist = schema.Artist{ID: id, Name: song.Artist}
+	}
+
+	if artist.AlbumsSyncedAt == nil || time.Since(*artist.AlbumsSyncedAt) > artistSyncTTL {
 		client, err := applemusic.NewClientFromCookies(user.AppleCookies)
-		if err != nil {
-			Fail(w, r, 0, "Apple Music client error: "+err.Error())
-			return
+		if err == nil {
+			err = applemusic.SyncArtist(client, &artist)
 		}
-		resource, err := client.GetArtist(id)
-		if err != nil {
+		if err != nil && artist.Name == "" {
 			Fail(w, r, 70, "Artist not found.")
-			return
-		}
-		applemusic.SyncArtist(resource)
-		if res2 := db.DB.First(&artist, "id = ?", id); res2.Error != nil {
-			Fail(w, r, 70, "Artist not found after sync.")
 			return
 		}
 	}
 
 	var albums []schema.Album
-	db.DB.Where("artist_id = ?", id).Order("year ASC, name ASC").Find(&albums)
+	db.DB.Where(
+		"artist_id = ? OR id IN (?)", id,
+		db.DB.Model(&schema.AlbumArtist{}).Select("album_id").Where("artist_id = ?", id),
+	).Order("year ASC, name ASC").Find(&albums)
+
+	if artist.AlbumCount != len(albums) {
+		db.DB.Model(&schema.Artist{}).Where("id = ?", id).Update("album_count", len(albums))
+	}
 
 	albumBodies := make([]AlbumID3Body, len(albums))
 	for i, a := range albums {
 		albumBodies[i] = albumToID3(a)
 	}
 
+	stars := loadStars(user.Username)
+	stars.markAlbums(albumBodies)
+
 	OK(w, r, func(resp *response) {
 		resp.Artist = &ArtistID3Body{
-			ID:         artist.ID,
-			Name:       artist.Name,
-			CoverArt:   artist.CoverArt,
-			AlbumCount: artist.AlbumCount,
-			Album:      albumBodies,
+			ID:             artist.ID,
+			Name:           artist.Name,
+			CoverArt:       artist.CoverArt,
+			AlbumCount:     len(albums),
+			Starred:        stars["artist:"+id],
+			Album:          albumBodies,
+			ArtistImageURL: artist.CoverArt,
+			SortName:       artist.SortName,
 		}
 	})
 }
 
 func GetArtists(w http.ResponseWriter, r *http.Request) {
-	_, code, msg := Authenticate(r)
+	user, code, msg := Authenticate(r)
 	if code != 0 {
 		Fail(w, r, code, msg)
 		return
@@ -129,6 +162,8 @@ func GetArtists(w http.ResponseWriter, r *http.Request) {
 
 	var artists []schema.Artist
 	db.DB.Order("name ASC").Find(&artists)
+
+	stars := loadStars(user.Username)
 
 	indexMap := make(map[string][]ArtistID3Body)
 	for _, a := range artists {
@@ -138,6 +173,7 @@ func GetArtists(w http.ResponseWriter, r *http.Request) {
 			Name:       a.Name,
 			CoverArt:   a.CoverArt,
 			AlbumCount: a.AlbumCount,
+			Starred:    stars["artist:"+a.ID],
 		})
 	}
 
@@ -175,6 +211,7 @@ func GetSong(w http.ResponseWriter, r *http.Request) {
 	}
 
 	body := songToChild(song)
+	body.Starred = loadStars(user.Username)["song:"+id]
 	OK(w, r, func(resp *response) {
 		resp.Song = &body
 	})
@@ -197,7 +234,7 @@ func loadSong(user *schema.User, id string, song *schema.Song) bool {
 }
 
 func GetIndexes(w http.ResponseWriter, r *http.Request) {
-	_, code, msg := Authenticate(r)
+	user, code, msg := Authenticate(r)
 	if code != 0 {
 		Fail(w, r, code, msg)
 		return
@@ -206,13 +243,16 @@ func GetIndexes(w http.ResponseWriter, r *http.Request) {
 	var artists []schema.Artist
 	db.DB.Order("name ASC").Find(&artists)
 
+	stars := loadStars(user.Username)
+
 	indexMap := make(map[string][]ChildBody)
 	for _, a := range artists {
 		key := indexKey(a.Name)
 		indexMap[key] = append(indexMap[key], ChildBody{
-			ID:    a.ID,
-			IsDir: true,
-			Title: a.Name,
+			ID:      a.ID,
+			IsDir:   true,
+			Title:   a.Name,
+			Starred: stars["artist:"+a.ID],
 		})
 	}
 

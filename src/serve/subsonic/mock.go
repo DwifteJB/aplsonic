@@ -32,5 +32,7 @@ var NotSupportedRoutes = []string{
 	"/rest/getPodcastEpisode",
 	"/rest/getPodcasts",
 	"/rest/refreshPodcasts",
-	 
+
+	"/rest/startScan", // not needed, as its all dynamic
+	"/rest/getScanStatus",
 }

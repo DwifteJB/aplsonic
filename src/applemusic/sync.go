@@ -54,23 +54,68 @@ func SyncSong(r *Resource) {
 	syncSongs([]Resource{*r})
 }
 
-func SyncArtist(r *Resource) {
-	syncArtists([]Resource{*r})
-	if r.Relationships.Albums != nil {
-		syncAlbums(r.Relationships.Albums.Data)
+func SyncArtist(c *Client, artist *schema.Artist) error {
+	now := time.Now()
+
+	appleID := artist.AppleID
+	if appleID == "" {
+		if artist.ID != artistIDFromName(artist.Name) {
+			appleID = artist.ID
+		} else {
+			found, err := c.FindArtistID(artist.Name)
+			if err != nil {
+				return err
+			}
+			if found == "" {
+				artist.AlbumsSyncedAt = &now
+				return db.DB.Save(artist).Error
+			}
+			appleID = found
+		}
 	}
+
+	r, err := c.GetArtist(appleID)
+	if err != nil {
+		return err
+	}
+
+	artist.AppleID = r.ID
+	artist.Name = r.Attributes.Name
+	artist.AlbumsSyncedAt = &now
+	if r.Attributes.Artwork != nil {
+		artist.CoverArt = FormatArtworkURL(r.Attributes.Artwork.URL)
+	}
+	if err := db.DB.Save(artist).Error; err != nil {
+		return err
+	}
+
+	db.DB.Where("artist_id = ?", artist.ID).Delete(&schema.AlbumArtist{})
+	if r.Relationships.Albums != nil && len(r.Relationships.Albums.Data) > 0 {
+		albums := r.Relationships.Albums.Data
+		syncAlbums(albums)
+		links := make([]schema.AlbumArtist, len(albums))
+		for i, a := range albums {
+			links[i] = schema.AlbumArtist{AlbumID: a.ID, ArtistID: artist.ID}
+		}
+		db.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&links)
+	}
+	return nil
 }
 
 func syncArtists(resources []Resource) {
 	for _, r := range resources {
 		artist := schema.Artist{
-			ID:   r.ID,
-			Name: r.Attributes.Name,
+			ID:      r.ID,
+			AppleID: r.ID,
+			Name:    r.Attributes.Name,
 		}
 		if r.Attributes.Artwork != nil {
 			artist.CoverArt = FormatArtworkURL(r.Attributes.Artwork.URL)
 		}
-		db.DB.Clauses(clause.OnConflict{UpdateAll: true}).Create(&artist)
+		db.DB.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"name", "cover_art", "apple_id"}),
+		}).Create(&artist)
 	}
 }
 
@@ -84,6 +129,8 @@ func syncAlbums(resources []Resource) {
 			SongCount:     r.Attributes.TrackCount,
 			Duration:      int(r.Attributes.DurationInMillis / 1000),
 			IsCompilation: r.Attributes.IsCompilation,
+
+			ExplicitStatus: r.Attributes.ContentRating,
 		}
 
 		if len(r.Attributes.GenreNames) > 0 {

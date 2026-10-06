@@ -9,13 +9,13 @@ import (
 )
 
 func GetAlbumList(w http.ResponseWriter, r *http.Request) {
-	_, code, msg := Authenticate(r)
+	user, code, msg := Authenticate(r)
 	if code != 0 {
 		Fail(w, r, code, msg)
 		return
 	}
 
-	albums, err := queryAlbums(r)
+	albums, err := queryAlbums(r, user.Username)
 	if err != nil {
 		Fail(w, r, 0, err.Error())
 		return
@@ -33,8 +33,12 @@ func GetAlbumList(w http.ResponseWriter, r *http.Request) {
 			Year:     a.Year,
 			Genre:    a.Genre,
 			Duration: a.Duration,
+
+			ExplicitStatus: a.ExplicitStatus,
 		}
 	}
+
+	loadStars(user.Username).markChildren(children)
 
 	OK(w, r, func(resp *response) {
 		resp.AlbumList = &AlbumListBody{Album: children}
@@ -42,13 +46,13 @@ func GetAlbumList(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetAlbumList2(w http.ResponseWriter, r *http.Request) {
-	_, code, msg := Authenticate(r)
+	user, code, msg := Authenticate(r)
 	if code != 0 {
 		Fail(w, r, code, msg)
 		return
 	}
 
-	albums, err := queryAlbums(r)
+	albums, err := queryAlbums(r, user.Username)
 	if err != nil {
 		Fail(w, r, 0, err.Error())
 		return
@@ -59,13 +63,15 @@ func GetAlbumList2(w http.ResponseWriter, r *http.Request) {
 		bodies[i] = albumToID3(a)
 	}
 
+	loadStars(user.Username).markAlbums(bodies)
+
 	OK(w, r, func(resp *response) {
 		resp.AlbumList2 = &AlbumList2Body{Album: bodies}
 	})
 }
 
 // queryAlbums builds and executes the album query based on the type= param.
-func queryAlbums(r *http.Request) ([]schema.Album, error) {
+func queryAlbums(r *http.Request, username string) ([]schema.Album, error) {
 	q := r.URL.Query()
 	listType := q.Get("type")
 	size := intParam(r, "size", 10)
@@ -112,7 +118,7 @@ func queryAlbums(r *http.Request) ([]schema.Album, error) {
 		tx = tx.Where("genre = ?", genre).Order("name ASC")
 
 	case "starred":
-		tx = tx.Joins("JOIN starreds ON starreds.item_id = albums.id AND starreds.item_type = 'album'").
+		tx = tx.Joins("JOIN starreds ON starreds.item_id = albums.id AND starreds.item_type = 'album' AND starreds.username = ?", username).
 			Order("starreds.starred_at DESC")
 
 	case "highest":

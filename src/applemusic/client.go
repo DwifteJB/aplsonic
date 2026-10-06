@@ -154,6 +154,7 @@ func catalogTrackData(catalogSongIDs []string) []trackRef {
 	return data
 }
 
+
 // create a playlist
 func (c *Client) CreateLibraryPlaylist(name, description string, catalogSongIDs []string) (string, error) {
 	attrs := map[string]any{"name": name}
@@ -313,7 +314,59 @@ func (c *Client) GetArtist(id string) (*Resource, error) {
 	if len(wrapper.Data) == 0 {
 		return nil, fmt.Errorf("artist %s not found", id)
 	}
-	return &wrapper.Data[0], nil
+	artist := &wrapper.Data[0]
+
+	if albums := artist.Relationships.Albums; albums != nil {
+		for next := albums.Next; next != ""; {
+			u, err := url.Parse(next)
+			if err != nil {
+				return nil, err
+			}
+			pageParams := u.Query()
+			pageParams.Set("limit", "100")
+			data, err := c.get(u.Path, pageParams)
+			if err != nil {
+				return nil, err
+			}
+			var page ResourceList
+			if err := json.Unmarshal(data, &page); err != nil {
+				return nil, fmt.Errorf("parsing artist albums response: %w", err)
+			}
+			albums.Data = append(albums.Data, page.Data...)
+			next = page.Next
+		}
+		albums.Next = ""
+	}
+
+	return artist, nil
+}
+
+func (c *Client) FindArtistID(name string) (string, error) {
+	params := url.Values{
+		"term":  {name},
+		"types": {"artists"},
+		"limit": {"25"},
+	}
+	data, err := c.get(fmt.Sprintf("/v1/catalog/%s/search", c.Storefront), params)
+	if err != nil {
+		return "", err
+	}
+	var wrapper struct {
+		Results SearchResults `json:"results"`
+	}
+	if err := json.Unmarshal(data, &wrapper); err != nil {
+		return "", fmt.Errorf("parsing artist search response: %w", err)
+	}
+	if wrapper.Results.Artists == nil {
+		return "", nil
+	}
+	want := artistIDFromName(name)
+	for _, a := range wrapper.Results.Artists.Data {
+		if artistIDFromName(a.Attributes.Name) == want {
+			return a.ID, nil
+		}
+	}
+	return "", nil
 }
 
 // search for apple music

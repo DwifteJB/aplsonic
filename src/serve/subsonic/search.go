@@ -103,6 +103,10 @@ func Search3(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	stars := loadStars(user.Username)
+	stars.markAlbums(albumBodies)
+	stars.markChildren(songBodies)
+
 	OK(w, r, func(resp *response) {
 		resp.SearchResult3 = &SearchResult3Body{
 			Album: albumBodies,
@@ -135,6 +139,8 @@ func albumToID3(a schema.Album) AlbumID3Body {
 		Year:      a.Year,
 		Genre:     a.Genre,
 		Created:   a.CreatedAt.Format(time.RFC3339),
+
+		ExplicitStatus: a.ExplicitStatus,
 	}
 }
 
@@ -154,6 +160,8 @@ func songToChild(s schema.Song) ChildBody {
 		CoverArt:   s.CoverArt,
 		Duration:   s.Duration,
 		Type:       "music",
+
+		ExplicitStatus: s.ExplicitStatus,
 	}
 }
 
@@ -165,6 +173,8 @@ func appleAlbumToID3(r applemusic.Resource) AlbumID3Body {
 		SongCount: r.Attributes.TrackCount,
 		Duration:  int(r.Attributes.DurationInMillis / 1000),
 		Created:   time.Now().Format(time.RFC3339),
+
+		ExplicitStatus: r.Attributes.ContentRating,
 	}
 	if r.Attributes.Artwork != nil {
 		body.CoverArt = applemusic.FormatArtworkURL(r.Attributes.Artwork.URL)
@@ -191,6 +201,8 @@ func appleSongToChild(r applemusic.Resource) ChildBody {
 		DiscNumber: r.Attributes.DiscNumber,
 		Duration:   int(r.Attributes.DurationInMillis / 1000),
 		Type:       "music",
+
+		ExplicitStatus: r.Attributes.ContentRating,
 	}
 	if r.Attributes.Artwork != nil {
 		body.CoverArt = applemusic.FormatArtworkURL(r.Attributes.Artwork.URL)

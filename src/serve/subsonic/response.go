@@ -104,6 +104,8 @@ type ChildBody struct {
 	Suffix      string `json:"suffix,omitempty" xml:"suffix,attr,omitempty"`
 	Type        string `json:"type,omitempty" xml:"type,attr,omitempty"`
 	Starred     string `json:"starred,omitempty" xml:"starred,attr,omitempty"`
+
+	ExplicitStatus string `json:"explicitStatus,omitempty" xml:"explicitStatus,attr,omitempty"`
 }
 
 type AlbumID3Body struct {
@@ -119,6 +121,8 @@ type AlbumID3Body struct {
 	Created   string      `json:"created" xml:"created,attr"`
 	Starred   string      `json:"starred,omitempty" xml:"starred,attr,omitempty"`
 	Song      []ChildBody `json:"song,omitempty" xml:"song,omitempty"`
+
+	ExplicitStatus string `json:"explicitStatus,omitempty" xml:"explicitStatus,attr,omitempty"`
 }
 
 type ArtistID3Body struct {
@@ -128,6 +132,9 @@ type ArtistID3Body struct {
 	AlbumCount int            `json:"albumCount" xml:"albumCount,attr"`
 	Starred    string         `json:"starred,omitempty" xml:"starred,attr,omitempty"`
 	Album      []AlbumID3Body `json:"album,omitempty" xml:"album,omitempty"`
+
+	ArtistImageURL string `json:"artistImageUrl,omitempty" xml:"artistImageUrl,attr,omitempty"`
+	SortName       string `json:"sortName,omitempty" xml:"sortName,attr,omitempty"`
 }
 
 type ArtistsBody struct {
