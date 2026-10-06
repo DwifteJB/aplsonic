@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/DwifteJB/aplsonic/src/config"
-	"github.com/DwifteJB/aplsonic/src/db"
 	"github.com/DwifteJB/aplsonic/src/db/schema"
 	"github.com/DwifteJB/aplsonic/src/download"
 	"github.com/DwifteJB/aplsonic/src/storage"
@@ -76,7 +75,7 @@ func serveAudio(w http.ResponseWriter, r *http.Request, attachment bool) {
 	}
 
 	var song schema.Song
-	if res := db.DB.First(&song, "id = ?", id); res.Error != nil {
+	if !loadSong(user, id, &song) {
 		Fail(w, r, 70, "Song not found.")
 		return
 	}

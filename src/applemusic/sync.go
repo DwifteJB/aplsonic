@@ -50,6 +50,10 @@ func SyncAlbum(r *Resource) {
 	}
 }
 
+func SyncSong(r *Resource) {
+	syncSongs([]Resource{*r})
+}
+
 func SyncArtist(r *Resource) {
 	syncArtists([]Resource{*r})
 	if r.Relationships.Albums != nil {
@@ -148,7 +152,10 @@ func syncSongs(resources []Resource) {
 			song.AlbumID = r.Relationships.Albums.Data[0].ID
 		}
 
-		db.DB.Clauses(clause.OnConflict{UpdateAll: true}).Create(&song)
+		res := db.DB.Model(&schema.Song{}).Where("id = ?", song.ID).Updates(&song)
+		if res.Error != nil || res.RowsAffected == 0 {
+			db.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&song)
+		}
 	}
 }
 
@@ -226,7 +233,11 @@ func syncUserPlaylists(user *schema.User) error {
 			trackResources = append(trackResources, t)
 		}
 
-		syncSongs(trackResources)
+		if catalog, err := client.GetSongs(songIDs); err == nil && len(catalog) > 0 {
+			syncSongs(catalog)
+		} else {
+			syncSongs(trackResources)
+		}
 
 		pl := schema.Playlist{
 			ID:      p.ID,

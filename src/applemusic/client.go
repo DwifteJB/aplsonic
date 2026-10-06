@@ -264,6 +264,38 @@ func (c *Client) fetchTracks(albumID, storefront string) ([]Resource, error) {
 	return all, nil
 }
 
+func (c *Client) GetSongs(ids []string) ([]Resource, error) {
+	var all []Resource
+	for start := 0; start < len(ids); start += 100 {
+		end := min(start+100, len(ids))
+		params := url.Values{
+			"ids":     {strings.Join(ids[start:end], ",")},
+			"include": {"albums"},
+		}
+		data, err := c.get(fmt.Sprintf("/v1/catalog/%s/songs", c.Storefront), params)
+		if err != nil {
+			return all, err
+		}
+		var page ResourceList
+		if err := json.Unmarshal(data, &page); err != nil {
+			return all, fmt.Errorf("parsing songs response: %w", err)
+		}
+		all = append(all, page.Data...)
+	}
+	return all, nil
+}
+
+func (c *Client) GetSong(id string) (*Resource, error) {
+	songs, err := c.GetSongs([]string{id})
+	if err != nil {
+		return nil, err
+	}
+	if len(songs) == 0 {
+		return nil, fmt.Errorf("song %s not found", id)
+	}
+	return &songs[0], nil
+}
+
 func (c *Client) GetArtist(id string) (*Resource, error) {
 	params := url.Values{
 		"include": {"albums"},

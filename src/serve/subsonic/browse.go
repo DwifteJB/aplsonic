@@ -156,7 +156,7 @@ func GetArtists(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetSong(w http.ResponseWriter, r *http.Request) {
-	_, code, msg := Authenticate(r)
+	user, code, msg := Authenticate(r)
 	if code != 0 {
 		Fail(w, r, code, msg)
 		return
@@ -169,7 +169,7 @@ func GetSong(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var song schema.Song
-	if res := db.DB.First(&song, "id = ?", id); res.Error != nil {
+	if !loadSong(user, id, &song) {
 		Fail(w, r, 70, "Song not found.")
 		return
 	}
@@ -178,6 +178,22 @@ func GetSong(w http.ResponseWriter, r *http.Request) {
 	OK(w, r, func(resp *response) {
 		resp.Song = &body
 	})
+}
+
+func loadSong(user *schema.User, id string, song *schema.Song) bool {
+	if db.DB.First(song, "id = ?", id).Error == nil {
+		return true
+	}
+	client, err := applemusic.NewClientFromCookies(user.AppleCookies)
+	if err != nil {
+		return false
+	}
+	resource, err := client.GetSong(id)
+	if err != nil {
+		return false
+	}
+	applemusic.SyncSong(resource)
+	return db.DB.First(song, "id = ?", id).Error == nil
 }
 
 func GetIndexes(w http.ResponseWriter, r *http.Request) {
