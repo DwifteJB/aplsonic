@@ -96,5 +96,24 @@ func (b *fsBackend) GetArt(key string) ([]byte, bool) {
 }
 
 func (b *fsBackend) PutArt(key string, data []byte) error {
-	return os.WriteFile(filepath.Join(b.artDir, filepath.Base(key)), data, 0o644)
+	final := filepath.Join(b.artDir, filepath.Base(key))
+	dst, err := os.CreateTemp(b.artDir, filepath.Base(key)+".*.part")
+	if err != nil {
+		return err
+	}
+	tmp := dst.Name()
+	_, err = dst.Write(data)
+	if closeErr := dst.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		err = os.Chmod(tmp, 0o644)
+	}
+	if err == nil {
+		err = os.Rename(tmp, final)
+	}
+	if err != nil {
+		os.Remove(tmp)
+	}
+	return err
 }

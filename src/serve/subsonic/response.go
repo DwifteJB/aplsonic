@@ -34,6 +34,8 @@ type response struct {
 	Album         *AlbumID3Body      `json:"album,omitempty" xml:"album,omitempty"`
 	Artist        *ArtistID3Body     `json:"artist,omitempty" xml:"artist,omitempty"`
 	Artists       *ArtistsBody       `json:"artists,omitempty" xml:"artists,omitempty"`
+	ArtistInfo2   *ArtistInfo2Body   `json:"artistInfo2,omitempty" xml:"artistInfo2,omitempty"`
+	TopSongs      *TopSongsBody      `json:"topSongs,omitempty" xml:"topSongs,omitempty"`
 	Indexes       *IndexesBody       `json:"indexes,omitempty" xml:"indexes,omitempty"`
 	Song          *ChildBody         `json:"song,omitempty" xml:"song,omitempty"`
 	Starred       *StarredBody       `json:"starred,omitempty" xml:"starred,omitempty"`
@@ -135,6 +137,18 @@ type ArtistID3Body struct {
 
 	ArtistImageURL string `json:"artistImageUrl,omitempty" xml:"artistImageUrl,attr,omitempty"`
 	SortName       string `json:"sortName,omitempty" xml:"sortName,attr,omitempty"`
+}
+
+type ArtistInfo2Body struct {
+	Biography      string          `json:"biography,omitempty" xml:"biography,omitempty"`
+	SmallImageURL  string          `json:"smallImageUrl,omitempty" xml:"smallImageUrl,omitempty"`
+	MediumImageURL string          `json:"mediumImageUrl,omitempty" xml:"mediumImageUrl,omitempty"`
+	LargeImageURL  string          `json:"largeImageUrl,omitempty" xml:"largeImageUrl,omitempty"`
+	SimilarArtist  []ArtistID3Body `json:"similarArtist,omitempty" xml:"similarArtist,omitempty"`
+}
+
+type TopSongsBody struct {
+	Song []ChildBody `json:"song,omitempty" xml:"song,omitempty"`
 }
 
 type ArtistsBody struct {

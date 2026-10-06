@@ -16,6 +16,8 @@ type Resource struct {
 	Type          string        `json:"type"`
 	Attributes    Attributes    `json:"attributes"`
 	Relationships Relationships `json:"relationships"`
+
+	Views map[string]*ResourceList `json:"views,omitempty"`
 }
 
 type Attributes struct {
@@ -26,6 +28,7 @@ type Attributes struct {
 	GenreNames     []string `json:"genreNames,omitempty"`
 	ReleaseDate    string   `json:"releaseDate,omitempty"`
 	ContentRating  string   `json:"contentRating,omitempty"` // "explicit" or "clean" or ""
+	ArtistBio      string   `json:"artistBio,omitempty"`
 
 	// album-specific
 	TrackCount       int    `json:"trackCount,omitempty"`

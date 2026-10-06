@@ -8,8 +8,21 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"golang.org/x/sync/singleflight"
 
 	"github.com/DwifteJB/aplsonic/src/storage"
+)
+
+type fetchedArt struct {
+	data        []byte
+	contentType string
+}
+
+var (
+	artGroup  singleflight.Group
+	artClient = &http.Client{Timeout: 20 * time.Second}
 )
 
 func GetCoverArt(w http.ResponseWriter, r *http.Request) {
@@ -43,33 +56,43 @@ func GetCoverArt(w http.ResponseWriter, r *http.Request) {
 func fetchOrCacheArt(artURL string) ([]byte, string, error) {
 	key := artKey(artURL)
 
-	if data, ok := storage.GetArt(key); ok {
+	if data, ok := storage.GetArt(key); ok && len(data) > 0 {
 		return data, contentTypeForPath(key), nil
 	}
 
-	// nope? get from CDN :(
-	resp, err := http.Get(artURL)
-	if err != nil {
-		return nil, "", fmt.Errorf("fetching %s: %w", artURL, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, "", fmt.Errorf("CDN returned %d for %s", resp.StatusCode, artURL)
-	}
+	v, err, _ := artGroup.Do(key, func() (any, error) {
+		// nope? get from CDN :(
+		resp, err := artClient.Get(artURL)
+		if err != nil {
+			return nil, fmt.Errorf("fetching %s: %w", artURL, err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("CDN returned %d for %s", resp.StatusCode, artURL)
+		}
 
-	data, err := io.ReadAll(resp.Body)
+		data, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		if len(data) == 0 {
+			return nil, fmt.Errorf("CDN returned an empty body for %s", artURL)
+		}
+
+		ct := resp.Header.Get("Content-Type")
+		if ct == "" {
+			ct = contentTypeForPath(artURL)
+		}
+
+		_ = storage.PutArt(key, data)
+
+		return fetchedArt{data, ct}, nil
+	})
 	if err != nil {
 		return nil, "", err
 	}
-
-	ct := resp.Header.Get("Content-Type")
-	if ct == "" {
-		ct = contentTypeForPath(artURL)
-	}
-
-	_ = storage.PutArt(key, data)
-
-	return data, ct, nil
+	art := v.(fetchedArt)
+	return art.data, art.contentType, nil
 }
 
 // hashes the art URL into a cache key, preserving the extension.

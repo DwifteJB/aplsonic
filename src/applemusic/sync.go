@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"golang.org/x/sync/singleflight"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
 	"github.com/DwifteJB/aplsonic/src/db"
@@ -54,12 +55,16 @@ func SyncSong(r *Resource) {
 	syncSongs([]Resource{*r})
 }
 
+func SyncSongs(resources []Resource) {
+	syncSongs(resources)
+}
+
 func SyncArtist(c *Client, artist *schema.Artist) error {
 	now := time.Now()
 
 	appleID := artist.AppleID
 	if appleID == "" {
-		if artist.ID != artistIDFromName(artist.Name) {
+		if artist.ID != ArtistIDFromName(artist.Name) {
 			appleID = artist.ID
 		} else {
 			found, err := c.FindArtistID(artist.Name)
@@ -85,21 +90,28 @@ func SyncArtist(c *Client, artist *schema.Artist) error {
 	if r.Attributes.Artwork != nil {
 		artist.CoverArt = FormatArtworkURL(r.Attributes.Artwork.URL)
 	}
-	if err := db.DB.Save(artist).Error; err != nil {
-		return err
-	}
 
-	db.DB.Where("artist_id = ?", artist.ID).Delete(&schema.AlbumArtist{})
+	var links []schema.AlbumArtist
 	if r.Relationships.Albums != nil && len(r.Relationships.Albums.Data) > 0 {
 		albums := r.Relationships.Albums.Data
 		syncAlbums(albums)
-		links := make([]schema.AlbumArtist, len(albums))
+		links = make([]schema.AlbumArtist, len(albums))
 		for i, a := range albums {
 			links[i] = schema.AlbumArtist{AlbumID: a.ID, ArtistID: artist.ID}
 		}
-		db.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&links)
 	}
-	return nil
+
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("artist_id = ?", artist.ID).Delete(&schema.AlbumArtist{}).Error; err != nil {
+			return err
+		}
+		if len(links) > 0 {
+			if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&links).Error; err != nil {
+				return err
+			}
+		}
+		return tx.Save(artist).Error
+	})
 }
 
 func syncArtists(resources []Resource) {
@@ -148,7 +160,7 @@ func syncAlbums(resources []Resource) {
 
 		// get a stable artist ID from the name
 		if r.Attributes.ArtistName != "" {
-			album.ArtistID = artistIDFromName(r.Attributes.ArtistName)
+			album.ArtistID = ArtistIDFromName(r.Attributes.ArtistName)
 		}
 
 		// create a stub artist to link to (albums come before artists in results)
@@ -191,7 +203,7 @@ func syncSongs(resources []Resource) {
 			song.Year = parseYear(r.Attributes.ReleaseDate)
 		}
 		if r.Attributes.ArtistName != "" {
-			song.ArtistID = artistIDFromName(r.Attributes.ArtistName)
+			song.ArtistID = ArtistIDFromName(r.Attributes.ArtistName)
 		}
 
 		// link to relationship
@@ -342,7 +354,7 @@ func playlistFingerprint(name string, songIDs []string) string {
 }
 
 // derive 16 bit artist ID
-func artistIDFromName(name string) string {
+func ArtistIDFromName(name string) string {
 	sum := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(name))))
 	return hex.EncodeToString(sum[:8])
 }

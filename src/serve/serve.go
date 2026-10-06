@@ -101,6 +101,8 @@ func Serve() {
 		{"/rest/getAlbum", subsonic.GetAlbum},
 		{"/rest/getArtist", subsonic.GetArtist},
 		{"/rest/getArtists", subsonic.GetArtists},
+		{"/rest/getArtistInfo2", subsonic.GetArtistInfo2},
+		{"/rest/getTopSongs", subsonic.GetTopSongs},
 		{"/rest/getIndexes", subsonic.GetIndexes},
 		{"/rest/getSong", subsonic.GetSong},
 		{"/rest/stream", subsonic.Stream},

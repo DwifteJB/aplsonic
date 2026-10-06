@@ -103,19 +103,10 @@ func GetArtist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var artist schema.Artist
-	if db.DB.First(&artist, "id = ?", id).Error != nil {
-		var song schema.Song
-		db.DB.Select("artist").Limit(1).Find(&song, "artist_id = ?", id)
-		artist = schema.Artist{ID: id, Name: song.Artist}
-	}
+	artist := findArtist(id)
 
 	if artist.AlbumsSyncedAt == nil || time.Since(*artist.AlbumsSyncedAt) > artistSyncTTL {
-		client, err := applemusic.NewClientFromCookies(user.AppleCookies)
-		if err == nil {
-			err = applemusic.SyncArtist(client, &artist)
-		}
-		if err != nil && artist.Name == "" {
+		if err := syncArtist(user, &artist); err != nil && artist.Name == "" {
 			Fail(w, r, 70, "Artist not found.")
 			return
 		}

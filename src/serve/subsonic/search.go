@@ -57,6 +57,10 @@ func Search3(w http.ResponseWriter, r *http.Request) {
 	appleSongs := firstResources(results.Songs, songCount)
 	appleArtists := firstResources(results.Artists, artistCount)
 
+	for _, res := range appleArtists {
+		rememberAppleArtist(res)
+	}
+
 	fmt.Printf("Search query: %s, found %d albums, %d songs and %d artists\n", q, len(appleAlbums), len(appleSongs), len(appleArtists))
 
 	var albumBodies []AlbumID3Body
@@ -203,6 +207,7 @@ func appleAlbumToID3(r applemusic.Resource) AlbumID3Body {
 		ID:        r.ID,
 		Name:      r.Attributes.Name,
 		Artist:    r.Attributes.ArtistName,
+		ArtistID:  artistRef(r.Attributes.ArtistName),
 		SongCount: r.Attributes.TrackCount,
 		Duration:  int(r.Attributes.DurationInMillis / 1000),
 		Created:   time.Now().Format(time.RFC3339),
@@ -241,6 +246,7 @@ func appleSongToChild(r applemusic.Resource) ChildBody {
 		IsDir:      false,
 		Title:      r.Attributes.Name,
 		Artist:     r.Attributes.ArtistName,
+		ArtistID:   artistRef(r.Attributes.ArtistName),
 		Album:      r.Attributes.AlbumName,
 		Track:      r.Attributes.TrackNumber,
 		DiscNumber: r.Attributes.DiscNumber,

@@ -341,6 +341,44 @@ func (c *Client) GetArtist(id string) (*Resource, error) {
 	return artist, nil
 }
 
+func (c *Client) GetArtistInfo(id string, similar int) (*Resource, error) {
+	params := url.Values{
+		"extend":                         {"artistBio"},
+		"views":                          {"similar-artists"},
+		"limit[artists:similar-artists]": {strconv.Itoa(similar)},
+	}
+	data, err := c.get(fmt.Sprintf("/v1/catalog/%s/artists/%s", c.Storefront, id), params)
+	if err != nil {
+		return nil, err
+	}
+	var wrapper struct {
+		Data []Resource `json:"data"`
+	}
+	if err := json.Unmarshal(data, &wrapper); err != nil {
+		return nil, fmt.Errorf("parsing artist info response: %w", err)
+	}
+	if len(wrapper.Data) == 0 {
+		return nil, fmt.Errorf("artist %s not found", id)
+	}
+	return &wrapper.Data[0], nil
+}
+
+func (c *Client) GetArtistTopSongs(id string, limit int) ([]Resource, error) {
+	params := url.Values{
+		"limit":          {strconv.Itoa(limit)},
+		"include[songs]": {"albums"},
+	}
+	data, err := c.get(fmt.Sprintf("/v1/catalog/%s/artists/%s/view/top-songs", c.Storefront, id), params)
+	if err != nil {
+		return nil, err
+	}
+	var page ResourceList
+	if err := json.Unmarshal(data, &page); err != nil {
+		return nil, fmt.Errorf("parsing top songs response: %w", err)
+	}
+	return page.Data, nil
+}
+
 func (c *Client) FindArtistID(name string) (string, error) {
 	params := url.Values{
 		"term":  {name},
@@ -360,9 +398,9 @@ func (c *Client) FindArtistID(name string) (string, error) {
 	if wrapper.Results.Artists == nil {
 		return "", nil
 	}
-	want := artistIDFromName(name)
+	want := ArtistIDFromName(name)
 	for _, a := range wrapper.Results.Artists.Data {
-		if artistIDFromName(a.Attributes.Name) == want {
+		if ArtistIDFromName(a.Attributes.Name) == want {
 			return a.ID, nil
 		}
 	}
