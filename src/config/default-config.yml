@@ -11,7 +11,7 @@ web_port: 4554 # admin panel; set to 0 (or same as port) to serve it on the main
 sync_on_search: false
 download: "getAlbum" # "getAlbum" (on album open), "play" (on stream), or "playAlbum" (on stream, then rest of album in bg)
 download_playlist: false
-stream_hold: 20 # seconds to hold a stream request while a song downloads before redirecting the client to retry; 0 holds until done
+stream_hold: 4 # seconds to hold a stream request while a song downloads before redirecting the client to retry; keep under 5 (libmpv network-timeout); 0 holds until done
 
 storage:
   mode: filesystem # "filesystem" (default) or "s3"
