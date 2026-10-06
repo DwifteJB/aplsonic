@@ -53,14 +53,22 @@ func (b *fsBackend) PutSong(id, localPath, contentType string) (int64, error) {
 	}
 	defer src.Close()
 
-	dst, err := os.Create(b.songPath(id))
+	final := b.songPath(id)
+	dst, err := os.CreateTemp(filepath.Dir(final), id+".*.part")
 	if err != nil {
 		return 0, err
 	}
-	defer dst.Close()
-
+	tmp := dst.Name()
 	n, err := io.Copy(dst, src)
+	if closeErr := dst.Close(); err == nil {
+		err = closeErr
+	}
 	if err != nil {
+		os.Remove(tmp)
+		return 0, err
+	}
+	if err := os.Rename(tmp, final); err != nil {
+		os.Remove(tmp)
 		return 0, err
 	}
 	return n, nil
